@@ -7,7 +7,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 
 /** Configures the ordered logical architecture for a Gradle build. */
-abstract class ArchitectureLayersExtension
+abstract class StrataExtension
 @Inject
 constructor(
     private val objects: ObjectFactory,

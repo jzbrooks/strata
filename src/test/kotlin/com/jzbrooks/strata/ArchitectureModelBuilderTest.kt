@@ -87,9 +87,9 @@ class ArchitectureModelBuilderTest {
     assertTrue(!ArchitectureModelBuilder.isIgnored(":benchmarking", setOf(":benchmark")))
   }
 
-  private fun extension(): ArchitectureLayersExtension {
+  private fun extension(): StrataExtension {
     val project = ProjectBuilder.builder().build()
-    return project.objects.newInstance(ArchitectureLayersExtension::class.java)
+    return project.objects.newInstance(StrataExtension::class.java)
   }
 
   private fun identities(vararg paths: String) = paths.map {

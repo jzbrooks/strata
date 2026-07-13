@@ -1,6 +1,6 @@
 # Strata
 
-Strata is a Gradle plugin that enforces dependency direction between ordered logical architecture layers. 
+Strata is a Gradle plugin that enforces dependency direction between ordered logical architectural layers. 
 A layer can own several sibling top-level Gradle project roots, and nested projects inherit the layer of their first path segment.
 
 ## Kotlin DSL
@@ -10,7 +10,7 @@ plugins {
     id("com.jzbrooks.strata") version "0.1.0-SNAPSHOT"
 }
 
-architectureLayers {
+strata {
     layer("application") {
         projects("app", "features")
     }
@@ -50,7 +50,7 @@ plugins {
     id 'com.jzbrooks.strata' version '0.1.0-SNAPSHOT'
 }
 
-architectureLayers {
+strata {
     layer('application') {
         projects 'app', 'features'
     }

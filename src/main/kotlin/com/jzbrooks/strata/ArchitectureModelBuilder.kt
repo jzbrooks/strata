@@ -6,7 +6,7 @@ internal object ArchitectureModelBuilder {
   private val absoluteProjectPath = Regex("^:[^:\\s]+(?::[^:\\s]+)*$")
 
   fun build(
-      extension: ArchitectureLayersExtension,
+      extension: StrataExtension,
       projects: List<ProjectIdentity>,
   ): ArchitectureModel {
     val errors = mutableListOf<String>()

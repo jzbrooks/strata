@@ -17,8 +17,8 @@ class ArchitectureLayersPlugin : Plugin<Project> {
     project.pluginManager.apply("base")
     val extension =
         project.extensions.create(
-            "architectureLayers",
-            ArchitectureLayersExtension::class.java,
+            "strata",
+            StrataExtension::class.java,
         )
     val checkTask =
         project.tasks.register(
@@ -58,7 +58,7 @@ class ArchitectureLayersPlugin : Plugin<Project> {
     }
   }
 
-  private fun finalizeExtension(extension: ArchitectureLayersExtension) {
+  private fun finalizeExtension(extension: StrataExtension) {
     extension.layers().forEach { it.projectRoots.finalizeValue() }
     extension.ignoredProjectPaths.finalizeValue()
     extension.ignoredConfigurationNames.finalizeValue()

@@ -61,7 +61,7 @@ class ArchitectureLayersPluginFunctionalTest {
         listOf(":app", ":utility"),
         """
         plugins { id("com.jzbrooks.strata") }
-        architectureLayers {
+        strata {
             layer("application") { projects("app") }
         }
         """
@@ -77,7 +77,7 @@ class ArchitectureLayersPluginFunctionalTest {
         .writeText(
             """
             plugins { id("com.jzbrooks.strata") }
-            architectureLayers {
+            strata {
                 layer("application") { projects("app") }
                 unclassifiedProjects.set(com.jzbrooks.strata.UnclassifiedProjectPolicy.IGNORE)
             }
@@ -94,7 +94,7 @@ class ArchitectureLayersPluginFunctionalTest {
         listOf(":app"),
         """
         plugins { id("com.jzbrooks.strata") }
-        architectureLayers {
+        strata {
             layer("application") { projects("app") }
             ignoreProject("benchmark")
             allow(from = ":app", to = ":missing", because = "Temporary")
@@ -197,7 +197,7 @@ class ArchitectureLayersPluginFunctionalTest {
         listOf(":app"),
         """
         plugins { id("com.jzbrooks.strata") }
-        architectureLayers {
+        strata {
             layer("application") { projects("app", ":app") }
         }
         """
@@ -215,7 +215,7 @@ class ArchitectureLayersPluginFunctionalTest {
         listOf(":app", ":features"),
         """
         plugins { id("com.jzbrooks.strata") }
-        architectureLayers {
+        strata {
             layer("application") { projects("app", "features") }
             layer("application") { projects("features") }
         }
@@ -238,7 +238,7 @@ class ArchitectureLayersPluginFunctionalTest {
         listOf(":app", ":app:feature"),
         """
         plugins { id("com.jzbrooks.strata") }
-        architectureLayers {
+        strata {
             layer("empty") { }
             layer("application") { projects(":app:feature") }
             allow(from = ":app", to = ":app:feature", because = "  ")
@@ -261,7 +261,7 @@ class ArchitectureLayersPluginFunctionalTest {
         listOf(":app", ":features", ":domain"),
         """
         plugins { id 'com.jzbrooks.strata' }
-        architectureLayers {
+        strata {
             layer('application') {
                 projects 'app', 'features'
             }
@@ -342,7 +342,7 @@ class ArchitectureLayersPluginFunctionalTest {
       """
         plugins { id("com.jzbrooks.strata") }
 
-        architectureLayers {
+        strata {
             layer("application") { projects("app", "features") }
             layer("domain") { projects("domain") }
             layer("data") { projects("data", "repositories") }
