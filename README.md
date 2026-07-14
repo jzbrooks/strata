@@ -1,27 +1,42 @@
 # Strata
 
-Strata is a Gradle plugin that enforces dependency direction between ordered logical architectural layers. 
+Strata is a Gradle plugin that enforces an explicit dependency graph between logical architectural layers.
 A layer can own several sibling top-level Gradle project roots, and nested projects inherit the layer of their first path segment.
+
+For example, a build with layers **app**, **data**, & **infrastructure** 
+can use this plugin to enforce that `:app` projects do not depend on `:data` or `:infrastructure` projects.
+
+```text
+Root project 'example'
++--- Project ':app'
+|    +--- Project ':app:checkout'
+|    \--- Project ':app:profile'
++--- Project ':data'
+|    +--- Project ':data:orders'
+|    \--- Project ':data:users'
+\--- Project ':infrastructure'
+     +--- Project ':infrastructure:featureflags'
+     \--- Project ':infrastructure:telemetry'
+```
 
 ## Kotlin DSL
 
 ```kotlin
 plugins {
-    id("com.jzbrooks.strata") version "0.1.0-SNAPSHOT"
+    id("com.jzbrooks.strata") version "0.1.0"
 }
 
 strata {
     layer("application") {
-        projects("app", "features")
-    }
-    layer("domain") {
-        projects("domain", "use-cases")
+        projects("app")
+        dependsOn("domain")
     }
     layer("data") {
-        projects("data", "repositories")
+        projects("data")
+        dependsOn("platform")
     }
     layer("platform") {
-        projects("infrastructure", "networking", "database")
+        projects("infrastructure")
     }
 
     ignoreProject(":benchmark")
@@ -37,9 +52,9 @@ strata {
 }
 ```
 
-Apply and configure Strata once in the root project. Layer declaration order defines dependency direction: a project may depend on its own layer or any layer declared to its right. Direct project dependencies declared in all declarable configurations are checked without resolving configurations.
+Apply and configure Strata once in the root project. Each layer may depend on its own projects and on layers reachable through its explicit `dependsOn` declarations. Dependencies are transitive, forward references are supported, and declaration order affects only report display. Cycles and unknown layer names are configuration errors. Direct project dependencies declared in all declarable configurations are checked without resolving configurations.
 
-Run `./gradlew checkArchitectureLayers` to validate the build or `./gradlew architectureLayersReport` to inspect the classification. `checkArchitectureLayers` is also attached to the root `check` lifecycle task.
+Run `./gradlew checkArchitecturalLayers` to validate the build or `./gradlew architectureLayersReport` to inspect the classification. `checkArchitecturalLayers` is also attached to the root `check` lifecycle task.
 
 Ignored project paths cover the named project and its descendants. Allowances match only the exact directed source and target paths and require a non-blank justification.
 
@@ -47,12 +62,13 @@ Ignored project paths cover the named project and its descendants. Allowances ma
 
 ```groovy
 plugins {
-    id 'com.jzbrooks.strata' version '0.1.0-SNAPSHOT'
+    id 'com.jzbrooks.strata' version '0.1.0'
 }
 
 strata {
     layer('application') {
         projects 'app', 'features'
+        dependsOn 'domain'
     }
     layer('domain') {
         projects 'domain', 'use-cases'

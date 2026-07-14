@@ -13,7 +13,11 @@ internal object ArchitectureRendering {
 
         val source = model.classificationsByPath[edge.sourcePath] ?: return@mapNotNull null
         val target = model.classificationsByPath[edge.targetPath] ?: return@mapNotNull null
-        if (source.layer.index <= target.layer.index) return@mapNotNull null
+        if (
+            source.layer.name == target.layer.name ||
+                target.layer.name in source.layer.effectiveDependencies
+        )
+            return@mapNotNull null
         violation(model, edge, source, target)
       }
 
@@ -33,8 +37,12 @@ internal object ArchitectureRendering {
                   .sorted()
                   .forEach { appendLine("     $it") }
               appendLine()
+              appendLine("   Direct dependencies:")
+              appendLayers(model, layer.directDependencies)
+              appendLine()
               appendLine("   May depend on:")
-              model.layers.drop(layer.index).forEach { appendLine("     ${it.name}") }
+              appendLine("     ${layer.name}")
+              appendLayers(model, layer.effectiveDependencies)
             }
           }
           .trimEnd()
@@ -45,7 +53,13 @@ internal object ArchitectureRendering {
       source: ProjectClassification,
       target: ProjectClassification,
   ): String {
-    val allowedLayers = model.layers.drop(source.layer.index)
+    val directLayers =
+        model.layers.filter { candidate -> candidate.name in source.layer.directDependencies }
+    val allowedLayers =
+        model.layers.filter { candidate ->
+          candidate.name == source.layer.name ||
+              candidate.name in source.layer.effectiveDependencies
+        }
     val sourceMembers = source.layer.projectRoots.sorted()
     val allowedRoots = allowedLayers.flatMap { it.projectRoots }.sorted()
     return buildString {
@@ -63,8 +77,9 @@ internal object ArchitectureRendering {
       appendLine("Declared from:")
       appendLine("  ${edge.buildFile}")
       appendLine()
-      appendLine("Configured layer order:")
-      appendLine("  ${model.layers.joinToString(" -> ") { it.name }}")
+      appendLine("Declared layer dependencies:")
+      if (directLayers.isEmpty()) appendLine("  (none)")
+      directLayers.forEach { appendLine("  ${it.name}") }
       appendLine()
       appendLine("Source layer members:")
       sourceMembers.forEach { appendLine("  :$it") }
@@ -79,6 +94,9 @@ internal object ArchitectureRendering {
       appendLine("  ${edge.configuration}(project(\"${target.projectPath}\"))")
       appendLine()
       appendLine("Suggested fixes:")
+      appendLine(
+          "- If architecturally appropriate, add dependsOn(\"${target.layer.name}\") to the '${source.layer.name}' layer."
+      )
       appendLine("- Move the shared abstraction to a project in the '${source.layer.name}' layer.")
       appendLine(
           "- Reverse or invert the dependency so the '${target.layer.name}' layer does not own a dependency required by '${source.layer.name}'."
@@ -90,5 +108,11 @@ internal object ArchitectureRendering {
           "- Add a narrow documented exception only when the violation is intentional and temporary."
       )
     }
+  }
+
+  private fun StringBuilder.appendLayers(model: ArchitectureModel, names: Set<String>) {
+    val layers = model.layers.filter { it.name in names }
+    if (layers.isEmpty()) appendLine("     (none)")
+    layers.forEach { appendLine("     ${it.name}") }
   }
 }

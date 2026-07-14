@@ -6,7 +6,7 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 
-/** Configures the ordered logical architecture for a Gradle build. */
+/** Configures the logical architecture for a Gradle build. */
 abstract class StrataExtension
 @Inject
 constructor(
@@ -51,8 +51,11 @@ constructor(
 interface LayerSpec {
   val name: String
   val projectRoots: SetProperty<String>
+  val dependencyNames: SetProperty<String>
 
   fun projects(vararg projectRoots: String)
+
+  fun dependsOn(vararg layerNames: String)
 }
 
 internal abstract class DefaultLayerSpec
@@ -61,9 +64,14 @@ constructor(
     final override val name: String,
 ) : LayerSpec {
   abstract override val projectRoots: SetProperty<String>
+  abstract override val dependencyNames: SetProperty<String>
 
   override fun projects(vararg projectRoots: String) {
     this.projectRoots.addAll(projectRoots.toList())
+  }
+
+  override fun dependsOn(vararg layerNames: String) {
+    dependencyNames.addAll(layerNames.toList())
   }
 }
 

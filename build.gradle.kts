@@ -18,7 +18,8 @@ gradlePlugin {
       id = "com.jzbrooks.strata"
       implementationClass = "com.jzbrooks.strata.ArchitectureLayersPlugin"
       displayName = "Strata"
-      description = "Enforces ordered architectural layers across Gradle projects"
+      description =
+          "Enforces an explicit architectural layer dependency graph across Gradle projects"
     }
   }
 }

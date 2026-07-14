@@ -4,6 +4,8 @@ data class LayerDefinition(
     val name: String,
     val index: Int,
     val projectRoots: Set<String>,
+    val directDependencies: Set<String>,
+    val effectiveDependencies: Set<String>,
 )
 
 data class ProjectClassification(

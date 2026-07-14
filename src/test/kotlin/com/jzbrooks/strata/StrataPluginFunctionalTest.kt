@@ -10,11 +10,11 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
-class ArchitectureLayersPluginFunctionalTest {
+class StrataPluginFunctionalTest {
   @TempDir lateinit var testProjectDir: Path
 
   @Test
-  fun `allows sibling roots and nested projects in both directions`() {
+  fun `allows same-layer edges and transitive declared dependencies`() {
     fixture(
         projects =
             listOf(
@@ -37,7 +37,7 @@ class ArchitectureLayersPluginFunctionalTest {
         rootBuild = kotlinRootBuild(),
         dependencies =
             mapOf(
-                ":app" to listOf(":features:checkout"),
+                ":app" to listOf(":features:checkout", ":networking:http"),
                 ":features" to listOf(":app:navigation"),
                 ":data" to listOf(":repositories:users"),
                 ":repositories" to listOf(":data:model"),
@@ -264,6 +264,7 @@ class ArchitectureLayersPluginFunctionalTest {
         strata {
             layer('application') {
                 projects 'app', 'features'
+                dependsOn 'domain'
             }
             layer('domain') {
                 projects 'domain'
@@ -343,9 +344,9 @@ class ArchitectureLayersPluginFunctionalTest {
         plugins { id("com.jzbrooks.strata") }
 
         strata {
-            layer("application") { projects("app", "features") }
-            layer("domain") { projects("domain") }
-            layer("data") { projects("data", "repositories") }
+            layer("application") { projects("app", "features"); dependsOn("domain") }
+            layer("domain") { projects("domain"); dependsOn("data") }
+            layer("data") { projects("data", "repositories"); dependsOn("platform") }
             layer("platform") { projects("infrastructure", "networking", "database") }
             $extra
         }

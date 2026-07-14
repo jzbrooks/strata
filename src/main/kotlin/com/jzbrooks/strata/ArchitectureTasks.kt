@@ -9,17 +9,17 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 
 @CacheableTask
-abstract class CheckArchitectureLayersTask : DefaultTask() {
+abstract class CheckArchitecturalLayersTask : DefaultTask() {
   @get:Input abstract val violations: ListProperty<String>
 
   init {
     group = "verification"
-    description = "Checks direct project dependencies against the configured architectural layers."
+    description = "Checks project dependencies against the configured architectural layer graph."
     violations.convention(emptyList())
   }
 
   @TaskAction
-  fun checkArchitecture() {
+  fun checkArchitecturalLayers() {
     val failures = violations.get()
     if (failures.isNotEmpty()) {
       throw GradleException(failures.joinToString("\n\n${"=".repeat(80)}\n\n"))
@@ -34,7 +34,7 @@ abstract class ArchitectureLayersReportTask : DefaultTask() {
 
   init {
     group = "help"
-    description = "Reports projects grouped by their configured architectural layer."
+    description = "Reports projects and dependencies in the architectural layer graph."
     reportText.convention("Architectural layers")
   }
 

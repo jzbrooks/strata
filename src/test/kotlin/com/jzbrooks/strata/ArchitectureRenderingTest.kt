@@ -5,11 +5,32 @@ import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 
 class ArchitectureRenderingTest {
-  private val application = LayerDefinition("application", 0, linkedSetOf("app", "features"))
-  private val domain = LayerDefinition("domain", 1, setOf("domain"))
-  private val data = LayerDefinition("data", 2, linkedSetOf("data", "repositories"))
+  private val application =
+      LayerDefinition(
+          "application",
+          0,
+          linkedSetOf("app", "features"),
+          setOf("domain"),
+          setOf("domain", "data", "platform"),
+      )
+  private val domain =
+      LayerDefinition("domain", 1, setOf("domain"), setOf("data"), setOf("data", "platform"))
+  private val data =
+      LayerDefinition(
+          "data",
+          2,
+          linkedSetOf("data", "repositories"),
+          setOf("platform"),
+          setOf("platform"),
+      )
   private val platform =
-      LayerDefinition("platform", 3, linkedSetOf("infrastructure", "networking", "database"))
+      LayerDefinition(
+          "platform",
+          3,
+          linkedSetOf("infrastructure", "networking", "database"),
+          emptySet(),
+          emptySet(),
+      )
   private val layers = listOf(application, domain, data, platform)
 
   @Test
@@ -46,7 +67,8 @@ class ArchitectureRenderingTest {
     assertContains(diagnostic, "Forbidden architectural dependency: platform -> data")
     assertContains(diagnostic, "Source project root:     :networking")
     assertContains(diagnostic, "Target project root:     :repositories")
-    assertContains(diagnostic, "application -> domain -> data -> platform")
+    assertContains(diagnostic, "Declared layer dependencies:\n  (none)")
+    assertContains(diagnostic, "dependsOn(\"data\")")
     assertContains(diagnostic, "implementation(project(\":repositories:users\"))")
   }
 
@@ -67,7 +89,7 @@ class ArchitectureRenderingTest {
     assertContains(report, "     :features:checkout")
     assertContains(
         report,
-        "   May depend on:\n     application\n     domain\n     data\n     platform",
+        "   Direct dependencies:\n     domain\n\n   May depend on:\n     application\n     domain\n     data\n     platform",
     )
   }
 

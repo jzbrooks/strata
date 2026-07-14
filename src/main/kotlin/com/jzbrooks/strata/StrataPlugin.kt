@@ -6,11 +6,11 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 
-class ArchitectureLayersPlugin : Plugin<Project> {
+class StrataPlugin : Plugin<Project> {
   override fun apply(project: Project) {
     if (project != project.rootProject) {
       throw GradleException(
-          "The com.jzbrooks.strata plugin must be applied to the root project only."
+          "The com.jzbrooks.strata plugin must only be applied to the root project."
       )
     }
 
@@ -22,8 +22,8 @@ class ArchitectureLayersPlugin : Plugin<Project> {
         )
     val checkTask =
         project.tasks.register(
-            "checkArchitectureLayers",
-            CheckArchitectureLayersTask::class.java,
+            "checkArchitecturalLayers",
+            CheckArchitecturalLayersTask::class.java,
         )
     val reportTask =
         project.tasks.register(
@@ -59,7 +59,10 @@ class ArchitectureLayersPlugin : Plugin<Project> {
   }
 
   private fun finalizeExtension(extension: StrataExtension) {
-    extension.layers().forEach { it.projectRoots.finalizeValue() }
+    for (layer in extension.layers()) {
+      layer.projectRoots.finalizeValue()
+      layer.dependencyNames.finalizeValue()
+    }
     extension.ignoredProjectPaths.finalizeValue()
     extension.ignoredConfigurationNames.finalizeValue()
     extension.unclassifiedProjects.finalizeValue()

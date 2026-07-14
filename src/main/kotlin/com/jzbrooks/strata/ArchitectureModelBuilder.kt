@@ -1,5 +1,6 @@
 package com.jzbrooks.strata
 
+import kotlin.collections.linkedSetOf
 import org.gradle.api.GradleException
 
 internal object ArchitectureModelBuilder {
@@ -18,7 +19,7 @@ internal object ArchitectureModelBuilder {
       errors += "At least one architectural layer must be declared."
     }
 
-    val layers =
+    val unresolvedLayers =
         extension.layers().mapIndexed { index, spec ->
           if (spec.name.isBlank()) {
             errors += "Architectural layer names must not be blank."
@@ -45,8 +46,43 @@ internal object ArchitectureModelBuilder {
                   "Top-level project root ':$normalized' configured for architectural layer '${spec.name}' does not exist in this build."
             }
           }
-          LayerDefinition(spec.name, index, normalizedRoots)
+          val dependencies = linkedSetOf<String>()
+          spec.dependencyNames.orNull?.forEach { dependency ->
+            if (dependency.isBlank()) {
+              errors += "Architectural layer '${spec.name}' contains a blank dependency name."
+            } else {
+              dependencies += dependency
+            }
+          }
+          UnresolvedLayer(spec.name, index, normalizedRoots, dependencies)
         }
+
+    val layerNames = unresolvedLayers.mapTo(linkedSetOf()) { it.name }
+    unresolvedLayers.forEach { layer ->
+      layer.dependencies.forEach { dependency ->
+        when (dependency) {
+          layer.name -> errors += "Architectural layer '${layer.name}' must not depend on itself."
+
+          !in layerNames ->
+              errors +=
+                  "Architectural layer '${layer.name}' depends on unknown layer '$dependency'."
+        }
+      }
+    }
+    findCycle(unresolvedLayers)?.let { cycle ->
+      errors += "Architectural layer dependency cycle detected: ${cycle.joinToString(" -> ")}"
+    }
+
+    val dependenciesByName = unresolvedLayers.associate { it.name to it.dependencies }
+    val layers = unresolvedLayers.map { layer ->
+      LayerDefinition(
+          layer.name,
+          layer.index,
+          layer.projectRoots,
+          layer.dependencies,
+          reachableDependencies(layer.name, dependenciesByName),
+      )
+    }
 
     rootAssignments
         .filterValues { it.size > 1 }
@@ -57,10 +93,13 @@ internal object ArchitectureModelBuilder {
           ->
           validateExistingProjectPath(path, "Ignored project path", projectPaths, errors)
         }
+
     val ignoredConfigurations =
         extension.ignoredConfigurationNames.orNull.orEmpty().toList().toSet()
-    ignoredConfigurations.filter(String::isBlank).forEach {
-      errors += "Ignored configuration names must not be blank."
+
+    val blankIgnoredConfigurations = ignoredConfigurations.count { it.isBlank() }
+    if (blankIgnoredConfigurations > 1) {
+      errors += "$blankIgnoredConfigurations ignored configuration names must not be blank."
     }
 
     val allowances =
@@ -182,4 +221,61 @@ internal object ArchitectureModelBuilder {
     appendLine()
     append("Remove ':$root' from all but one layer declaration.")
   }
+
+  private fun reachableDependencies(
+      layerName: String,
+      dependenciesByName: Map<String, Set<String>>,
+  ): Set<String> {
+    val reachable = linkedSetOf<String>()
+    fun visit(name: String) {
+      dependenciesByName[name].orEmpty().forEach { dependency ->
+        if (dependency in dependenciesByName && reachable.add(dependency)) visit(dependency)
+      }
+    }
+    visit(layerName)
+    reachable.remove(layerName)
+    return reachable
+  }
+
+  private fun findCycle(layers: List<UnresolvedLayer>): List<String>? {
+    val knownNames = layers.mapTo(linkedSetOf()) { it.name }
+    val dependencies = layers.associate {
+      it.name to it.dependencies.filterTo(linkedSetOf()) { d -> d in knownNames }
+    }
+    val visited = mutableSetOf<String>()
+    val active = mutableSetOf<String>()
+    val path = mutableListOf<String>()
+    fun visit(name: String): List<String>? {
+      if (name in active) {
+        val start = path.indexOf(name)
+        return path.subList(start, path.size).toList() + name
+      }
+      if (!visited.add(name)) return null
+      active += name
+      path += name
+      for (dependency in dependencies[name] ?: emptySet()) {
+        visit(dependency)?.let {
+          return it
+        }
+      }
+      path.removeAt(path.lastIndex)
+      active -= name
+      return null
+    }
+
+    for (layer in layers) {
+      visit(layer.name)?.let {
+        return it
+      }
+    }
+
+    return null
+  }
+
+  private data class UnresolvedLayer(
+      val name: String,
+      val index: Int,
+      val projectRoots: Set<String>,
+      val dependencies: Set<String>,
+  )
 }

@@ -87,6 +87,69 @@ class ArchitectureModelBuilderTest {
     assertTrue(!ArchitectureModelBuilder.isIgnored(":benchmarking", setOf(":benchmark")))
   }
 
+  @Test
+  fun `resolves forward references and transitive dependencies`() {
+    val extension = extension()
+    extension.layer(
+        "application",
+        Action {
+          it.projects("app")
+          it.dependsOn("domain")
+        },
+    )
+    extension.layer("platform", Action { it.projects("platform") })
+    extension.layer(
+        "domain",
+        Action {
+          it.projects("domain")
+          it.dependsOn("platform")
+        },
+    )
+
+    val model =
+        ArchitectureModelBuilder.build(extension, identities(":app", ":domain", ":platform"))
+
+    assertEquals(setOf("domain"), model.layers[0].directDependencies)
+    assertEquals(setOf("domain", "platform"), model.layers[0].effectiveDependencies)
+    assertEquals(emptySet(), model.layers[1].effectiveDependencies)
+  }
+
+  @Test
+  fun `rejects invalid dependency names and deterministic cycles`() {
+    val extension = extension()
+    extension.layer(
+        "application",
+        Action {
+          it.projects("app")
+          it.dependsOn(" ", "missing")
+        },
+    )
+    extension.layer(
+        "domain",
+        Action {
+          it.projects("domain")
+          it.dependsOn("data")
+        },
+    )
+    extension.layer(
+        "data",
+        Action {
+          it.projects("data")
+          it.dependsOn("domain", "data")
+        },
+    )
+
+    val failure =
+        assertFailsWith<GradleException> {
+          ArchitectureModelBuilder.build(extension, identities(":app", ":domain", ":data"))
+        }
+
+    assertContains(failure.message.orEmpty(), "contains a blank dependency name")
+    assertContains(failure.message.orEmpty(), "depends on unknown layer 'missing'")
+    assertContains(failure.message.orEmpty(), "must not depend on itself")
+    assertContains(failure.message.orEmpty(), "dependency cycle detected: domain -> data -> domain")
+  }
+
   private fun extension(): StrataExtension {
     val project = ProjectBuilder.builder().build()
     return project.objects.newInstance(StrataExtension::class.java)
