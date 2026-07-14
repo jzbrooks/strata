@@ -8,6 +8,7 @@ plugins {
 }
 
 group = "com.jzbrooks.strata"
+
 version = property("VERSION_NAME").toString()
 
 repositories {

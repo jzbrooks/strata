@@ -23,7 +23,7 @@ Root project 'example'
 
 ```kotlin
 plugins {
-    id("com.jzbrooks.strata") version "0.1.0"
+    id("com.jzbrooks.strata") version "0.0.1"
 }
 
 strata {
@@ -63,7 +63,7 @@ Allowances match only the exact directed source and target paths and require a n
 
 ```groovy
 plugins {
-    id 'com.jzbrooks.strata' version '0.1.0'
+    id 'com.jzbrooks.strata' version '0.0.1'
 }
 
 strata {
