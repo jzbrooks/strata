@@ -3,7 +3,7 @@
 Strata is a Gradle plugin that enforces an explicit dependency graph between logical architectural layers.
 A layer can own several sibling top-level Gradle project roots, and nested projects inherit the layer of their first path segment.
 
-For example, a build with layers **app**, **data**, & **infrastructure** 
+For example, a build with layers **app**, **data**, & **infrastructure**
 can use this plugin to enforce that `:app` projects do not depend on `:data` or `:infrastructure` projects.
 
 ```text
@@ -67,11 +67,11 @@ plugins {
 
 strata {
     layer('application') {
-        projects 'app', 'features'
-        dependsOn 'domain'
+        projects 'app'
+        dependsOn 'data'
     }
-    layer('domain') {
-        projects 'domain', 'use-cases'
+    layer('data') {
+        projects 'data'
     }
 }
 ```
