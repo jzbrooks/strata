@@ -27,8 +27,8 @@ class StrataPlugin : Plugin<Project> {
         )
     val reportTask =
         project.tasks.register(
-            "architectureLayersReport",
-            ArchitectureLayersReportTask::class.java,
+            "architecturalLayersReport",
+            ArchitecturalLayersReportTask::class.java,
         )
     project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME).configure { it.dependsOn(checkTask) }
 
@@ -60,8 +60,7 @@ class StrataPlugin : Plugin<Project> {
 
   private fun finalizeExtension(extension: StrataExtension) {
     for (layer in extension.layers()) {
-      layer.projectRoots.finalizeValue()
-      layer.dependencyNames.finalizeValue()
+      layer.dependencyPaths.finalizeValue()
     }
     extension.ignoredProjectPaths.finalizeValue()
     extension.ignoredConfigurationNames.finalizeValue()

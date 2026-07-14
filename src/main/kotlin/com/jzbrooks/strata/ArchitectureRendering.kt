@@ -10,12 +10,11 @@ internal object ArchitectureRendering {
             return@mapNotNull null
         if (AllowedEdge(edge.sourcePath, edge.targetPath) in model.allowances)
             return@mapNotNull null
-
         val source = model.classificationsByPath[edge.sourcePath] ?: return@mapNotNull null
         val target = model.classificationsByPath[edge.targetPath] ?: return@mapNotNull null
         if (
-            source.layer.name == target.layer.name ||
-                target.layer.name in source.layer.effectiveDependencies
+            source.layer.projectPath == target.layer.projectPath ||
+                target.layer.projectPath in source.layer.effectiveDependencies
         )
             return@mapNotNull null
         violation(model, edge, source, target)
@@ -26,9 +25,7 @@ internal object ArchitectureRendering {
             appendLine("Architectural layers")
             model.layers.forEachIndexed { index, layer ->
               appendLine()
-              appendLine("${index + 1}. ${layer.name}")
-              appendLine("   Top-level roots:")
-              layer.projectRoots.sorted().forEach { appendLine("     :$it") }
+              appendLine("${index + 1}. Layer project: ${layer.projectPath}")
               appendLine()
               appendLine("   Projects:")
               model.classificationsByPath.values
@@ -41,7 +38,7 @@ internal object ArchitectureRendering {
               appendLayers(model, layer.directDependencies)
               appendLine()
               appendLine("   May depend on:")
-              appendLine("     ${layer.name}")
+              appendLine("     ${layer.projectPath}")
               appendLayers(model, layer.effectiveDependencies)
             }
           }
@@ -53,66 +50,57 @@ internal object ArchitectureRendering {
       source: ProjectClassification,
       target: ProjectClassification,
   ): String {
-    val directLayers =
-        model.layers.filter { candidate -> candidate.name in source.layer.directDependencies }
+    val directLayers = model.layers.filter { it.projectPath in source.layer.directDependencies }
     val allowedLayers =
-        model.layers.filter { candidate ->
-          candidate.name == source.layer.name ||
-              candidate.name in source.layer.effectiveDependencies
+        model.layers.filter {
+          it.projectPath == source.layer.projectPath ||
+              it.projectPath in source.layer.effectiveDependencies
         }
-    val sourceMembers = source.layer.projectRoots.sorted()
-    val allowedRoots = allowedLayers.flatMap { it.projectRoots }.sorted()
     return buildString {
-      appendLine("Forbidden architectural dependency: ${source.layer.name} -> ${target.layer.name}")
+      appendLine(
+          "Forbidden architectural dependency: ${source.layer.projectPath} -> ${target.layer.projectPath}"
+      )
       appendLine()
       appendLine("Source project:          ${source.projectPath}")
-      appendLine("Source project root:     :${source.projectRoot}")
-      appendLine("Source layer:            ${source.layer.name}")
+      appendLine("Source layer project:    ${source.layer.projectPath}")
       appendLine("Configuration:           ${edge.configuration}")
       appendLine()
       appendLine("Target project:          ${target.projectPath}")
-      appendLine("Target project root:     :${target.projectRoot}")
-      appendLine("Target layer:            ${target.layer.name}")
+      appendLine("Target layer project:    ${target.layer.projectPath}")
       appendLine()
       appendLine("Declared from:")
       appendLine("  ${edge.buildFile}")
       appendLine()
       appendLine("Declared layer dependencies:")
       if (directLayers.isEmpty()) appendLine("  (none)")
-      directLayers.forEach { appendLine("  ${it.name}") }
+      directLayers.forEach { appendLine("  ${it.projectPath}") }
       appendLine()
-      appendLine("Source layer members:")
-      sourceMembers.forEach { appendLine("  :$it") }
-      appendLine()
-      appendLine("Allowed target layers:")
-      allowedLayers.forEach { appendLine("  ${it.name}") }
-      appendLine()
-      appendLine("Allowed top-level project roots:")
-      allowedRoots.forEach { appendLine("  :$it") }
+      appendLine("Allowed layer projects:")
+      allowedLayers.forEach { appendLine("  ${it.projectPath}") }
       appendLine()
       appendLine("Likely declaration:")
       appendLine("  ${edge.configuration}(project(\"${target.projectPath}\"))")
       appendLine()
       appendLine("Suggested fixes:")
       appendLine(
-          "- If architecturally appropriate, add dependsOn(\"${target.layer.name}\") to the '${source.layer.name}' layer."
-      )
-      appendLine("- Move the shared abstraction to a project in the '${source.layer.name}' layer.")
-      appendLine(
-          "- Reverse or invert the dependency so the '${target.layer.name}' layer does not own a dependency required by '${source.layer.name}'."
+          "- If architecturally appropriate, add dependsOn(\"${target.layer.projectPath}\") to layer(\"${source.layer.projectPath}\")."
       )
       appendLine(
-          "- Reconsider whether ':${target.projectRoot}' belongs in the '${target.layer.name}' layer."
+          "- Move the shared abstraction into the '${source.layer.projectPath}' project subtree."
       )
+      appendLine(
+          "- Reverse or invert the dependency so '${target.layer.projectPath}' does not own a dependency required by '${source.layer.projectPath}'."
+      )
+      appendLine("- Reconsider the layer boundary represented by '${target.layer.projectPath}'.")
       append(
           "- Add a narrow documented exception only when the violation is intentional and temporary."
       )
     }
   }
 
-  private fun StringBuilder.appendLayers(model: ArchitectureModel, names: Set<String>) {
-    val layers = model.layers.filter { it.name in names }
+  private fun StringBuilder.appendLayers(model: ArchitectureModel, paths: Set<String>) {
+    val layers = model.layers.filter { it.projectPath in paths }
     if (layers.isEmpty()) appendLine("     (none)")
-    layers.forEach { appendLine("     ${it.name}") }
+    layers.forEach { appendLine("     ${it.projectPath}") }
   }
 }

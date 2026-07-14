@@ -1,10 +1,10 @@
 # Strata
 
-Strata is a Gradle plugin that enforces an explicit dependency graph between logical architectural layers.
-A layer can own several sibling top-level Gradle project roots, and nested projects inherit the layer of their first path segment.
+Strata is a Gradle plugin that enforces an explicit dependency graph between project-backed architectural layers.
+Each layer is one existing top-level Gradle project. That project and all its descendants belong to the layer automatically.
 
 For example, a build with layers **app**, **data**, & **infrastructure**
-can use this plugin to enforce that `:app` projects do not depend on `:data` or `:infrastructure` projects.
+can use this plugin to enforce the dependency direction `:app` → `:data` → `:infrastructure`.
 
 ```text
 Root project 'example'
@@ -27,17 +27,13 @@ plugins {
 }
 
 strata {
-    layer("application") {
-        projects("app")
-        dependsOn("domain")
+    layer(":app") {
+        dependsOn(":data")
     }
-    layer("data") {
-        projects("data")
-        dependsOn("platform")
+    layer(":data") {
+        dependsOn(":infrastructure")
     }
-    layer("platform") {
-        projects("infrastructure")
-    }
+    layer(":infrastructure") {}
 
     ignoreProject(":benchmark")
     ignoreConfiguration("specialMigrationConfiguration")
@@ -52,11 +48,16 @@ strata {
 }
 ```
 
-Apply and configure Strata once in the root project. Each layer may depend on its own projects and on layers reachable through its explicit `dependsOn` declarations. Dependencies are transitive, forward references are supported, and declaration order affects only report display. Cycles and unknown layer names are configuration errors. Direct project dependencies declared in all declarable configurations are checked without resolving configurations.
+Apply and configure Strata once in the root project. Layer identities and `dependsOn` values must be absolute paths to
+top-level projects, including the leading colon. Each layer may depend on its own project subtree and on layers reachable
+through its explicit `dependsOn` declarations. Dependencies are transitive, forward references are supported, and
+declaration order affects only report display. Cycles and unknown layer paths are configuration errors. Direct project
+dependencies declared in all declarable configurations are checked without resolving configurations.
 
-Run `./gradlew checkArchitecturalLayers` to validate the build or `./gradlew architectureLayersReport` to inspect the classification. `checkArchitecturalLayers` is also attached to the root `check` lifecycle task.
+Run `./gradlew checkArchitecturalLayers` to validate the build or `./gradlew architecturalLayersReport` to inspect the classification. `checkArchitecturalLayers` is also attached to the root `check` lifecycle task.
 
-Ignored project paths cover the named project and its descendants. Allowances match only the exact directed source and target paths and require a non-blank justification.
+Ignored project paths cover the named project and its descendants.
+Allowances match only the exact directed source and target paths and require a non-blank justification.
 
 ## Groovy DSL
 
@@ -66,13 +67,11 @@ plugins {
 }
 
 strata {
-    layer('application') {
-        projects 'app'
-        dependsOn 'data'
+    layer(':app') {
+        dependsOn ':data'
     }
-    layer('data') {
-        projects 'data'
-    }
+    layer(':data') { dependsOn ':infrastructure' }
+    layer(':infrastructure') {}
 }
 ```
 

@@ -14,45 +14,28 @@ class StrataPluginFunctionalTest {
   @TempDir lateinit var testProjectDir: Path
 
   @Test
-  fun `allows same-layer edges and transitive declared dependencies`() {
+  fun `allows same layer direct and transitive dependencies`() {
     fixture(
-        projects =
-            listOf(
-                ":app",
-                ":app:navigation",
-                ":app:design-system",
-                ":features",
-                ":features:checkout",
-                ":domain",
-                ":domain:model",
-                ":data",
-                ":data:model",
-                ":repositories",
-                ":repositories:users",
-                ":infrastructure",
-                ":networking",
-                ":networking:http",
-                ":database",
-            ),
-        rootBuild = kotlinRootBuild(),
-        dependencies =
-            mapOf(
-                ":app" to listOf(":features:checkout", ":networking:http"),
-                ":features" to listOf(":app:navigation"),
-                ":data" to listOf(":repositories:users"),
-                ":repositories" to listOf(":data:model"),
-                ":networking" to listOf(":infrastructure"),
-                ":infrastructure" to listOf(":networking:http"),
-                ":app:navigation" to listOf(":features:checkout"),
-                ":features:checkout" to listOf(":app:design-system"),
-                ":repositories:users" to listOf(":data:model"),
-            ),
+        standardProjects(),
+        kotlinRootBuild(),
+        mapOf(
+            ":app" to listOf(":app:checkout", ":data:users", ":infrastructure:http"),
+            ":data" to listOf(":data:users"),
+            ":data:users" to listOf(":infrastructure:http"),
+        ),
     )
-
-    val result = run(":check")
-
-    assertEquals(TaskOutcome.SUCCESS, result.task(":checkArchitectureLayers")?.outcome)
+    val result = run("check")
+    assertEquals(TaskOutcome.SUCCESS, result.task(":checkArchitecturalLayers")?.outcome)
     assertContains(result.output, "No forbidden architectural dependencies found")
+  }
+
+  @Test
+  fun `declaration order does not allow a dependency`() {
+    fixture(standardProjects(), kotlinRootBuild(), mapOf(":infrastructure:http" to listOf(":app")))
+    val result = runAndFail("checkArchitecturalLayers")
+    assertContains(result.output, "Forbidden architectural dependency: :infrastructure -> :app")
+    assertContains(result.output, "dependsOn(\":app\")")
+    assertContains(result.output, "infrastructure/http/build.gradle.kts")
   }
 
   @Test
@@ -61,234 +44,118 @@ class StrataPluginFunctionalTest {
         listOf(":app", ":utility"),
         """
         plugins { id("com.jzbrooks.strata") }
-        strata {
-            layer("application") { projects("app") }
-        }
+                   strata { layer(":app") {} }
         """
             .trimIndent(),
     )
-
-    val failed = runAndFail("checkArchitectureLayers")
-    assertContains(failed.output, ":utility")
-    assertContains(failed.output, "not assigned to an architectural layer")
-
+    assertContains(runAndFail("help").output, ":utility")
     testProjectDir
         .resolve("build.gradle.kts")
         .writeText(
             """
             plugins { id("com.jzbrooks.strata") }
-            strata {
-                layer("application") { projects("app") }
-                unclassifiedProjects.set(com.jzbrooks.strata.UnclassifiedProjectPolicy.IGNORE)
-            }
+                       strata {
+                         layer(":app") {}
+                         unclassifiedProjects.set(com.jzbrooks.strata.UnclassifiedProjectPolicy.IGNORE)
+                       }
             """
-                .trimIndent(),
+                .trimIndent()
         )
-    val ignored = run("checkArchitectureLayers")
-    assertEquals(TaskOutcome.SUCCESS, ignored.task(":checkArchitectureLayers")?.outcome)
+    assertEquals(
+        TaskOutcome.SUCCESS,
+        run("checkArchitecturalLayers").task(":checkArchitecturalLayers")?.outcome,
+    )
   }
 
   @Test
-  fun `rejects malformed ignored paths and missing exception endpoints`() {
+  fun `rejects invalid layer and dependency paths`() {
     fixture(
-        listOf(":app"),
+        listOf(":app", ":app:feature", ":data"),
         """
         plugins { id("com.jzbrooks.strata") }
-        strata {
-            layer("application") { projects("app") }
-            ignoreProject("benchmark")
-            allow(from = ":app", to = ":missing", because = "Temporary")
-        }
+                   strata {
+                     layer("app") {}
+                     layer(":") {}
+                     layer(":app:feature") {}
+                     layer(":missing") {}
+                     layer(":app") { dependsOn("data", ":unknown", ":app") }
+                     layer(":app") {}
+                     layer(":data") {}
+                   }
         """
             .trimIndent(),
     )
-
-    val result = runAndFail("help")
-
-    assertContains(result.output, "Ignored project path 'benchmark' is malformed")
-    assertContains(result.output, "Architecture exception target ':missing' does not exist")
+    val output = runAndFail("help").output
+    assertContains(output, "'app' is malformed")
+    assertContains(output, "root project ':'")
+    assertContains(output, "':app:feature' is nested")
+    assertContains(output, "':missing' does not exist")
+    assertContains(output, "':app' is declared more than once")
+    assertContains(output, "Layer dependency 'data'")
+    assertContains(output, "unknown layer project ':unknown'")
+    assertContains(output, "must not depend on itself")
   }
 
   @Test
-  fun `rejects application to a subproject`() {
-    fixture(listOf(":app"), "")
-    testProjectDir
-        .resolve("app/build.gradle.kts")
-        .writeText(
-            "plugins { id(\"com.jzbrooks.strata\") }",
-        )
-
-    val result = runAndFail("help")
-
-    assertContains(result.output, "must be applied to the root project only")
-  }
-
-  @Test
-  fun `fails invalid cross-layer dependencies with rich diagnostics`() {
+  fun `supports allowances ignored configurations and ignored subtrees`() {
     fixture(
-        projects = standardProjects(),
-        rootBuild = kotlinRootBuild(),
-        dependencies =
-            mapOf(
-                ":repositories:users" to listOf(":domain:model"),
-                ":networking:http" to listOf(":repositories:users"),
-                ":database" to listOf(":app"),
-            ),
-    )
-
-    val result = runAndFail("checkArchitectureLayers")
-
-    assertContains(result.output, "Forbidden architectural dependency: data -> domain")
-    assertContains(result.output, "Forbidden architectural dependency: platform -> data")
-    assertContains(result.output, "Forbidden architectural dependency: platform -> application")
-    assertContains(result.output, "Source project root:     :networking")
-    assertContains(result.output, "Target project root:     :repositories")
-    assertContains(result.output, "networking/http/build.gradle.kts")
-  }
-
-  @Test
-  fun `supports exact allowances ignored configurations and ignored project subtrees`() {
-    val build =
+        standardProjects() + listOf(":benchmark", ":benchmark:jmh"),
         kotlinRootBuild(
-            extra =
-                """
-                ignoreProject(":benchmark")
-                ignoreConfiguration("migration")
-                allow(
-                    from = ":networking:http",
-                    to = ":repositories:users",
-                    because = "Temporary exception tracked by ARCH-123",
-                )
-                """
-                    .trimIndent(),
-        )
-    fixture(
-        projects = standardProjects() + listOf(":benchmark", ":benchmark:jmh"),
-        rootBuild = build,
-        dependencies =
-            mapOf(
-                ":networking:http" to listOf(":repositories:users"),
-                ":benchmark:jmh" to listOf(":app"),
-            ),
-        customDependencies = mapOf(":repositories:users" to ("migration" to ":domain:model")),
+            """
+            ignoreProject(":benchmark")
+                           ignoreConfiguration("migration")
+                           allow(from = ":infrastructure:http", to = ":data:users", because = "ARCH-123")
+            """
+                .trimIndent()
+        ),
+        mapOf(":infrastructure:http" to listOf(":data:users"), ":benchmark:jmh" to listOf(":app")),
+        customDependencies = mapOf(":data:users" to ("migration" to ":app")),
     )
-
-    val result = run("checkArchitectureLayers")
-
-    assertEquals(TaskOutcome.SUCCESS, result.task(":checkArchitectureLayers")?.outcome)
+    assertEquals(
+        TaskOutcome.SUCCESS,
+        run("checkArchitecturalLayers").task(":checkArchitecturalLayers")?.outcome,
+    )
   }
 
   @Test
-  fun `renders informational report by logical layer`() {
+  fun `renders report by layer project`() {
     fixture(standardProjects(), kotlinRootBuild())
-
-    val result = run("architectureLayersReport")
-
-    assertContains(result.output, "Architectural layers")
-    assertContains(result.output, "1. application")
-    assertContains(result.output, "Top-level roots:\n     :app\n     :features")
-    assertContains(result.output, ":features:checkout")
-    assertContains(result.output, "May depend on:\n     platform")
-  }
-
-  @Test
-  fun `fails configuration for duplicate normalized roots`() {
-    fixture(
-        listOf(":app"),
-        """
-        plugins { id("com.jzbrooks.strata") }
-        strata {
-            layer("application") { projects("app", ":app") }
-        }
-        """
-            .trimIndent(),
-    )
-
-    val result = runAndFail("help")
-
-    assertContains(result.output, "Top-level project root ':app' is declared more than once")
-  }
-
-  @Test
-  fun `fails configuration for duplicate root assignment and duplicate layer names`() {
-    fixture(
-        listOf(":app", ":features"),
-        """
-        plugins { id("com.jzbrooks.strata") }
-        strata {
-            layer("application") { projects("app", "features") }
-            layer("application") { projects("features") }
-        }
-        """
-            .trimIndent(),
-    )
-
-    val result = runAndFail("help")
-
-    assertContains(result.output, "Architectural layer 'application' is declared more than once")
-    assertContains(
-        result.output,
-        "Top-level project root ':features' is assigned to multiple architectural layers",
-    )
-  }
-
-  @Test
-  fun `fails configuration for empty layer nested root and blank exception reason`() {
-    fixture(
-        listOf(":app", ":app:feature"),
-        """
-        plugins { id("com.jzbrooks.strata") }
-        strata {
-            layer("empty") { }
-            layer("application") { projects(":app:feature") }
-            allow(from = ":app", to = ":app:feature", because = "  ")
-            unclassifiedProjects.set(com.jzbrooks.strata.UnclassifiedProjectPolicy.IGNORE)
-        }
-        """
-            .trimIndent(),
-    )
-
-    val result = runAndFail("help")
-
-    assertContains(result.output, "must declare at least one top-level project root")
-    assertContains(result.output, "is not a top-level project root")
-    assertContains(result.output, "must include a non-blank justification")
+    val output = run("architectureLayersReport").output
+    assertContains(output, "1. Layer project: :app")
+    assertContains(output, ":app:checkout")
+    assertContains(output, "Direct dependencies:\n     :data")
   }
 
   @Test
   fun `supports the Groovy DSL`() {
     fixture(
-        listOf(":app", ":features", ":domain"),
+        standardProjects(),
         """
         plugins { id 'com.jzbrooks.strata' }
-        strata {
-            layer('application') {
-                projects 'app', 'features'
-                dependsOn 'domain'
-            }
-            layer('domain') {
-                projects 'domain'
-            }
-        }
+                   strata {
+                     layer(':app') { dependsOn ':data' }
+                     layer(':data') { dependsOn ':infrastructure' }
+                     layer(':infrastructure') {}
+                   }
         """
             .trimIndent(),
+        mapOf(":app" to listOf(":data:users")),
         groovy = true,
-        dependencies = mapOf(":features" to listOf(":app", ":domain")),
     )
-
-    val result = run("checkArchitectureLayers")
-
-    assertEquals(TaskOutcome.SUCCESS, result.task(":checkArchitectureLayers")?.outcome)
+    assertEquals(
+        TaskOutcome.SUCCESS,
+        run("checkArchitecturalLayers").task(":checkArchitecturalLayers")?.outcome,
+    )
   }
 
   @Test
   fun `reuses configuration cache`() {
     fixture(standardProjects(), kotlinRootBuild())
-
-    run("checkArchitectureLayers", "--configuration-cache")
-    val second = run("checkArchitectureLayers", "--configuration-cache")
-
-    assertContains(second.output, "Reusing configuration cache")
+    run("checkArchitecturalLayers", "--configuration-cache")
+    assertContains(
+        run("checkArchitecturalLayers", "--configuration-cache").output,
+        "Reusing configuration cache",
+    )
   }
 
   private fun fixture(
@@ -301,10 +168,9 @@ class StrataPluginFunctionalTest {
     testProjectDir
         .resolve("settings.gradle.kts")
         .writeText(
-            "rootProject.name = \"fixture\"\n" + projects.joinToString("\n") { "include(\"$it\")" },
+            "rootProject.name = \"fixture\"\n" + projects.joinToString("\n") { "include(\"$it\")" }
         )
-    val rootBuildName = if (groovy) "build.gradle" else "build.gradle.kts"
-    testProjectDir.resolve(rootBuildName).writeText(rootBuild)
+    testProjectDir.resolve(if (groovy) "build.gradle" else "build.gradle.kts").writeText(rootBuild)
     projects.forEach { path ->
       val directory =
           testProjectDir
@@ -313,67 +179,56 @@ class StrataPluginFunctionalTest {
       val projectDependencies = dependencies[path].orEmpty()
       val custom = customDependencies[path]
       val content =
-          if (groovy) {
-            buildString {
-              appendLine("plugins { id 'java-library' }")
-              if (projectDependencies.isNotEmpty()) {
-                appendLine("dependencies {")
-                projectDependencies.forEach { appendLine("    implementation project('$it')") }
-                appendLine("}")
+          if (groovy)
+              buildString {
+                appendLine("plugins { id 'java-library' }")
+                if (projectDependencies.isNotEmpty()) {
+                  appendLine("dependencies {")
+                  projectDependencies.forEach { appendLine("  implementation project('$it')") }
+                  appendLine("}")
+                }
               }
-            }
-          } else {
-            buildString {
-              appendLine("plugins { `java-library` }")
-              if (custom != null) appendLine("configurations.create(\"${custom.first}\")")
-              if (projectDependencies.isNotEmpty() || custom != null) {
-                appendLine("dependencies {")
-                projectDependencies.forEach { appendLine("    implementation(project(\"$it\"))") }
-                if (custom != null)
-                    appendLine("    add(\"${custom.first}\", project(\"${custom.second}\"))")
-                appendLine("}")
+          else
+              buildString {
+                appendLine("plugins { `java-library` }")
+                if (custom != null) appendLine("configurations.create(\"${custom.first}\")")
+                if (projectDependencies.isNotEmpty() || custom != null) {
+                  appendLine("dependencies {")
+                  projectDependencies.forEach { appendLine("  implementation(project(\"$it\"))") }
+                  if (custom != null)
+                      appendLine("  add(\"${custom.first}\", project(\"${custom.second}\"))")
+                  appendLine("}")
+                }
               }
-            }
-          }
       directory.resolve(if (groovy) "build.gradle" else "build.gradle.kts").writeText(content)
     }
   }
 
   private fun kotlinRootBuild(extra: String = "") =
-      """
-        plugins { id("com.jzbrooks.strata") }
-
-        strata {
-            layer("application") { projects("app", "features"); dependsOn("domain") }
-            layer("domain") { projects("domain"); dependsOn("data") }
-            layer("data") { projects("data", "repositories"); dependsOn("platform") }
-            layer("platform") { projects("infrastructure", "networking", "database") }
-            $extra
-        }
-    """
+      """plugins { id("com.jzbrooks.strata") }
+         strata {
+           layer(":app") { dependsOn(":data") }
+           layer(":data") { dependsOn(":infrastructure") }
+           layer(":infrastructure") {}
+           $extra
+         }"""
           .trimIndent()
 
   private fun standardProjects() =
       listOf(
           ":app",
-          ":features",
-          ":features:checkout",
-          ":domain",
-          ":domain:model",
+          ":app:checkout",
           ":data",
-          ":repositories",
-          ":repositories:users",
+          ":data:users",
           ":infrastructure",
-          ":networking",
-          ":networking:http",
-          ":database",
+          ":infrastructure:http",
       )
 
   private fun run(vararg arguments: String) = runner(arguments.toList()).build()
 
   private fun runAndFail(vararg arguments: String) = runner(arguments.toList()).buildAndFail()
 
-  private fun runner(arguments: List<String>): GradleRunner =
+  private fun runner(arguments: List<String>) =
       GradleRunner.create()
           .withProjectDir(testProjectDir.toFile())
           .withPluginClasspath()

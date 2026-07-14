@@ -11,143 +11,91 @@ import org.junit.jupiter.api.Test
 
 class ArchitectureModelBuilderTest {
   @Test
-  fun `normalizes roots and classifies nested sibling projects`() {
+  fun `classifies a layer project and its descendants together`() {
     val extension = extension()
-    extension.layer("application", Action { it.projects("app", ":features") })
-    extension.layer("domain", Action { it.projects("domain") })
+    extension.layer(":app", Action { it.dependsOn(":data") })
+    extension.layer(":data", Action {})
+
+    val model = ArchitectureModelBuilder.build(extension, identities(":app", ":app:main", ":data"))
+
+    assertEquals(":app", model.classificationsByPath.getValue(":app:main").layer.projectPath)
+    assertEquals(listOf(":app", ":data"), model.layers.map { it.projectPath })
+  }
+
+  @Test
+  fun `resolves forward references and transitive dependencies`() {
+    val extension = extension()
+    extension.layer(":app", Action { it.dependsOn(":data") })
+    extension.layer(":infrastructure", Action {})
+    extension.layer(":data", Action { it.dependsOn(":infrastructure") })
 
     val model =
-        ArchitectureModelBuilder.build(
-            extension,
-            identities(":app", ":app:main", ":features", ":features:checkout", ":domain"),
-        )
+        ArchitectureModelBuilder.build(extension, identities(":app", ":data", ":infrastructure"))
 
-    assertEquals(
-        "application",
-        model.classificationsByPath.getValue(":features:checkout").layer.name,
-    )
-    assertEquals("features", model.classificationsByPath.getValue(":features:checkout").projectRoot)
-    assertEquals(listOf("application", "domain"), model.layers.map { it.name })
+    assertEquals(setOf(":data"), model.layers[0].directDependencies)
+    assertEquals(setOf(":data", ":infrastructure"), model.layers[0].effectiveDependencies)
+    assertEquals(emptySet(), model.layers[1].effectiveDependencies)
   }
 
   @Test
-  fun `rejects normalized duplicates in one layer`() {
+  fun `declaration order alone grants no access`() {
     val extension = extension()
-    extension.layer("application", Action { it.projects("app", ":app") })
+    extension.layer(":app", Action {})
+    extension.layer(":data", Action {})
+    val model = ArchitectureModelBuilder.build(extension, identities(":app", ":data"))
+    assertEquals(emptySet(), model.layers.first().effectiveDependencies)
+  }
+
+  @Test
+  fun `rejects invalid layer project paths`() {
+    val extension = extension()
+    extension.layer(" ", Action {})
+    extension.layer("app", Action {})
+    extension.layer(":", Action {})
+    extension.layer(":app:feature", Action {})
+    extension.layer(":missing", Action {})
+    extension.layer(":app", Action {})
+    extension.layer(":app", Action {})
 
     val failure =
         assertFailsWith<GradleException> {
-          ArchitectureModelBuilder.build(extension, identities(":app"))
+          ArchitectureModelBuilder.build(extension, identities(":app", ":app:feature"))
         }
 
+    assertContains(failure.message.orEmpty(), "must not be blank")
+    assertContains(failure.message.orEmpty(), "'app' is malformed")
+    assertContains(failure.message.orEmpty(), "root project ':'")
+    assertContains(failure.message.orEmpty(), "':app:feature' is nested")
+    assertContains(failure.message.orEmpty(), "':missing' does not exist")
+    assertContains(failure.message.orEmpty(), "':app' is declared more than once")
+  }
+
+  @Test
+  fun `rejects malformed unknown self references and deterministic cycles`() {
+    val extension = extension()
+    extension.layer(":app", Action { it.dependsOn(" ", "data", ":missing", ":app") })
+    extension.layer(":data", Action { it.dependsOn(":infrastructure") })
+    extension.layer(":infrastructure", Action { it.dependsOn(":data") })
+
+    val failure =
+        assertFailsWith<GradleException> {
+          ArchitectureModelBuilder.build(extension, identities(":app", ":data", ":infrastructure"))
+        }
+
+    assertContains(failure.message.orEmpty(), "blank dependency path")
+    assertContains(failure.message.orEmpty(), "Layer dependency 'data'")
+    assertContains(failure.message.orEmpty(), "unknown layer project ':missing'")
+    assertContains(failure.message.orEmpty(), "':app' must not depend on itself")
     assertContains(
         failure.message.orEmpty(),
-        "declared more than once in architectural layer 'application'",
+        "dependency cycle detected: :data -> :infrastructure -> :data",
     )
-  }
-
-  @Test
-  fun `rejects roots assigned to multiple logical layers`() {
-    val extension = extension()
-    extension.layer("application", Action { it.projects("app", "features") })
-    extension.layer("presentation", Action { it.projects("features") })
-
-    val failure =
-        assertFailsWith<GradleException> {
-          ArchitectureModelBuilder.build(extension, identities(":app", ":features"))
-        }
-
-    assertContains(
-        failure.message.orEmpty(),
-        "Top-level project root ':features' is assigned to multiple architectural layers",
-    )
-    assertContains(failure.message.orEmpty(), "application")
-    assertContains(failure.message.orEmpty(), "presentation")
-  }
-
-  @Test
-  fun `rejects nested roots empty layers and duplicate names`() {
-    val extension = extension()
-    extension.layer("domain", Action { it.projects(":domain:model") })
-    extension.layer("domain", Action {})
-
-    val failure =
-        assertFailsWith<GradleException> {
-          ArchitectureModelBuilder.build(extension, identities(":domain", ":domain:model"))
-        }
-
-    assertContains(failure.message.orEmpty(), "is not a top-level project root")
-    assertContains(failure.message.orEmpty(), "must declare at least one")
-    assertContains(failure.message.orEmpty(), "declared more than once")
   }
 
   @Test
   fun `ignored project paths cover their subtree`() {
     assertTrue(ArchitectureModelBuilder.isIgnored(":benchmark:jmh", setOf(":benchmark")))
     assertTrue(!ArchitectureModelBuilder.isIgnored(":benchmarking", setOf(":benchmark")))
-  }
-
-  @Test
-  fun `resolves forward references and transitive dependencies`() {
-    val extension = extension()
-    extension.layer(
-        "application",
-        Action {
-          it.projects("app")
-          it.dependsOn("domain")
-        },
-    )
-    extension.layer("platform", Action { it.projects("platform") })
-    extension.layer(
-        "domain",
-        Action {
-          it.projects("domain")
-          it.dependsOn("platform")
-        },
-    )
-
-    val model =
-        ArchitectureModelBuilder.build(extension, identities(":app", ":domain", ":platform"))
-
-    assertEquals(setOf("domain"), model.layers[0].directDependencies)
-    assertEquals(setOf("domain", "platform"), model.layers[0].effectiveDependencies)
-    assertEquals(emptySet(), model.layers[1].effectiveDependencies)
-  }
-
-  @Test
-  fun `rejects invalid dependency names and deterministic cycles`() {
-    val extension = extension()
-    extension.layer(
-        "application",
-        Action {
-          it.projects("app")
-          it.dependsOn(" ", "missing")
-        },
-    )
-    extension.layer(
-        "domain",
-        Action {
-          it.projects("domain")
-          it.dependsOn("data")
-        },
-    )
-    extension.layer(
-        "data",
-        Action {
-          it.projects("data")
-          it.dependsOn("domain", "data")
-        },
-    )
-
-    val failure =
-        assertFailsWith<GradleException> {
-          ArchitectureModelBuilder.build(extension, identities(":app", ":domain", ":data"))
-        }
-
-    assertContains(failure.message.orEmpty(), "contains a blank dependency name")
-    assertContains(failure.message.orEmpty(), "depends on unknown layer 'missing'")
-    assertContains(failure.message.orEmpty(), "must not depend on itself")
-    assertContains(failure.message.orEmpty(), "dependency cycle detected: domain -> data -> domain")
   }
 
   private fun extension(): StrataExtension {

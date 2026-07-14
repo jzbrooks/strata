@@ -16,7 +16,7 @@ gradlePlugin {
   plugins {
     create("strata") {
       id = "com.jzbrooks.strata"
-      implementationClass = "com.jzbrooks.strata.ArchitectureLayersPlugin"
+      implementationClass = "com.jzbrooks.strata.StrataPlugin"
       displayName = "Strata"
       description =
           "Enforces an explicit architectural layer dependency graph across Gradle projects"

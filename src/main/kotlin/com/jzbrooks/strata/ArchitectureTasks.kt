@@ -29,7 +29,7 @@ abstract class CheckArchitecturalLayersTask : DefaultTask() {
 }
 
 @CacheableTask
-abstract class ArchitectureLayersReportTask : DefaultTask() {
+abstract class ArchitecturalLayersReportTask : DefaultTask() {
   @get:Input abstract val reportText: Property<String>
 
   init {

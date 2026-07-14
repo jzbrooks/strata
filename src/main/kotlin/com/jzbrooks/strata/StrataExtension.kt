@@ -25,8 +25,8 @@ constructor(
     unclassifiedProjects.convention(UnclassifiedProjectPolicy.FAIL)
   }
 
-  fun layer(name: String, configure: Action<LayerSpec>) {
-    val layer = objects.newInstance(DefaultLayerSpec::class.java, name)
+  fun layer(projectPath: String, configure: Action<LayerSpec>) {
+    val layer = objects.newInstance(DefaultLayerSpec::class.java, projectPath)
     configure.execute(layer)
     declaredLayers += layer
   }
@@ -49,29 +49,21 @@ constructor(
 }
 
 interface LayerSpec {
-  val name: String
-  val projectRoots: SetProperty<String>
-  val dependencyNames: SetProperty<String>
+  val projectPath: String
+  val dependencyPaths: SetProperty<String>
 
-  fun projects(vararg projectRoots: String)
-
-  fun dependsOn(vararg layerNames: String)
+  fun dependsOn(vararg layerProjectPaths: String)
 }
 
 internal abstract class DefaultLayerSpec
 @Inject
 constructor(
-    final override val name: String,
+    final override val projectPath: String,
 ) : LayerSpec {
-  abstract override val projectRoots: SetProperty<String>
-  abstract override val dependencyNames: SetProperty<String>
+  abstract override val dependencyPaths: SetProperty<String>
 
-  override fun projects(vararg projectRoots: String) {
-    this.projectRoots.addAll(projectRoots.toList())
-  }
-
-  override fun dependsOn(vararg layerNames: String) {
-    dependencyNames.addAll(layerNames.toList())
+  override fun dependsOn(vararg layerProjectPaths: String) {
+    dependencyPaths.addAll(layerProjectPaths.toList())
   }
 }
 

@@ -5,107 +5,63 @@ import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 
 class ArchitectureRenderingTest {
-  private val application =
-      LayerDefinition(
-          "application",
-          0,
-          linkedSetOf("app", "features"),
-          setOf("domain"),
-          setOf("domain", "data", "platform"),
-      )
-  private val domain =
-      LayerDefinition("domain", 1, setOf("domain"), setOf("data"), setOf("data", "platform"))
-  private val data =
-      LayerDefinition(
-          "data",
-          2,
-          linkedSetOf("data", "repositories"),
-          setOf("platform"),
-          setOf("platform"),
-      )
-  private val platform =
-      LayerDefinition(
-          "platform",
-          3,
-          linkedSetOf("infrastructure", "networking", "database"),
-          emptySet(),
-          emptySet(),
-      )
-  private val layers = listOf(application, domain, data, platform)
+  private val app = LayerDefinition(":app", 0, setOf(":data"), setOf(":data", ":infrastructure"))
+  private val data = LayerDefinition(":data", 1, setOf(":infrastructure"), setOf(":infrastructure"))
+  private val infrastructure = LayerDefinition(":infrastructure", 2, emptySet(), emptySet())
+  private val layers = listOf(app, data, infrastructure)
 
   @Test
-  fun `same-layer sibling roots are valid in both directions`() {
-    val model =
-        model(
-            classification(":app", "app", application),
-            classification(":features:checkout", "features", application),
-        )
-    val edges =
-        listOf(
-            edge(":app", ":features:checkout"),
-            edge(":features:checkout", ":app"),
-        )
-
-    assertEquals(emptyList(), ArchitectureRendering.violations(model, edges))
-  }
-
-  @Test
-  fun `forbidden diagnostic identifies logical layers and matched roots`() {
-    val model =
-        model(
-            classification(":networking:http", "networking", platform),
-            classification(":repositories:users", "repositories", data),
-        )
-
-    val diagnostic =
+  fun `same layer descendants are valid in both directions`() {
+    val model = model(classification(":app", app), classification(":app:checkout", app))
+    assertEquals(
+        emptyList(),
         ArchitectureRendering.violations(
-                model,
-                listOf(edge(":networking:http", ":repositories:users")),
-            )
-            .single()
-
-    assertContains(diagnostic, "Forbidden architectural dependency: platform -> data")
-    assertContains(diagnostic, "Source project root:     :networking")
-    assertContains(diagnostic, "Target project root:     :repositories")
-    assertContains(diagnostic, "Declared layer dependencies:\n  (none)")
-    assertContains(diagnostic, "dependsOn(\"data\")")
-    assertContains(diagnostic, "implementation(project(\":repositories:users\"))")
-  }
-
-  @Test
-  fun `report groups sibling roots and nested projects by logical layer`() {
-    val model =
-        model(
-            classification(":app", "app", application),
-            classification(":features:checkout", "features", application),
-            classification(":domain:model", "domain", domain),
-        )
-
-    val report = ArchitectureRendering.report(model)
-
-    assertContains(report, "1. application")
-    assertContains(report, "     :app")
-    assertContains(report, "     :features")
-    assertContains(report, "     :features:checkout")
-    assertContains(
-        report,
-        "   Direct dependencies:\n     domain\n\n   May depend on:\n     application\n     domain\n     data\n     platform",
+            model,
+            listOf(edge(":app", ":app:checkout"), edge(":app:checkout", ":app")),
+        ),
     )
   }
 
-  private fun model(vararg classifications: ProjectClassification): ArchitectureModel =
+  @Test
+  fun `forbidden diagnostic identifies layer projects`() {
+    val model =
+        model(
+            classification(":infrastructure:http", infrastructure),
+            classification(":data:users", data),
+        )
+    val diagnostic =
+        ArchitectureRendering.violations(model, listOf(edge(":infrastructure:http", ":data:users")))
+            .single()
+    assertContains(diagnostic, "Forbidden architectural dependency: :infrastructure -> :data")
+    assertContains(diagnostic, "Source layer project:    :infrastructure")
+    assertContains(diagnostic, "Target layer project:    :data")
+    assertContains(diagnostic, "dependsOn(\":data\")")
+    assertContains(diagnostic, "implementation(project(\":data:users\"))")
+  }
+
+  @Test
+  fun `report groups nested projects by layer project`() {
+    val report =
+        ArchitectureRendering.report(
+            model(classification(":app", app), classification(":app:checkout", app))
+        )
+    assertContains(report, "1. Layer project: :app")
+    assertContains(report, "     :app:checkout")
+    assertContains(report, "Direct dependencies:\n     :data")
+  }
+
+  private fun model(vararg classifications: ProjectClassification) =
       ArchitectureModel(
-          layers = layers,
-          layersByProjectRoot =
-              layers.flatMap { layer -> layer.projectRoots.map { it to layer } }.toMap(),
-          classificationsByPath = classifications.associateBy { it.projectPath },
-          ignoredProjectPaths = emptySet(),
-          ignoredConfigurationNames = emptySet(),
-          allowances = emptySet(),
+          layers,
+          layers.associateBy { it.projectPath },
+          classifications.associateBy { it.projectPath },
+          emptySet(),
+          emptySet(),
+          emptySet(),
       )
 
-  private fun classification(path: String, root: String, layer: LayerDefinition) =
-      ProjectClassification(path, root, layer)
+  private fun classification(path: String, layer: LayerDefinition) =
+      ProjectClassification(path, layer)
 
   private fun edge(from: String, to: String) =
       DependencyEdge(from, to, "implementation", "${from.removePrefix(":")}/build.gradle.kts")
