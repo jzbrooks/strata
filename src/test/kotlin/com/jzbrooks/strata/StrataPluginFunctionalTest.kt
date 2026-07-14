@@ -228,6 +228,8 @@ class StrataPluginFunctionalTest {
 
   private fun runAndFail(vararg arguments: String) = runner(arguments.toList()).buildAndFail()
 
+  // Necessary unless gradle plugin test kit is adopted
+  @Suppress("WithPluginClasspathUsage")
   private fun runner(arguments: List<String>) =
       GradleRunner.create()
           .withProjectDir(testProjectDir.toFile())

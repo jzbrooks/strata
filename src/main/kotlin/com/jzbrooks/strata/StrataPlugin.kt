@@ -8,7 +8,7 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin
 
 class StrataPlugin : Plugin<Project> {
   override fun apply(project: Project) {
-    if (project != project.rootProject) {
+    if (project.path != project.isolated.rootProject.path) {
       throw GradleException(
           "The com.jzbrooks.strata plugin must only be applied to the root project."
       )
