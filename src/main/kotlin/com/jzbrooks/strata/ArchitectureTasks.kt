@@ -4,13 +4,13 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 
-@CacheableTask
-abstract class CheckArchitecturalLayersTask : DefaultTask() {
-  @get:Input abstract val violations: ListProperty<String>
+@DisableCachingByDefault(because = "The task produces no outputs and only verifies its inputs")
+public abstract class CheckArchitecturalLayersTask : DefaultTask() {
+  @get:Input public abstract val violations: ListProperty<String>
 
   init {
     group = "verification"
@@ -19,7 +19,7 @@ abstract class CheckArchitecturalLayersTask : DefaultTask() {
   }
 
   @TaskAction
-  fun checkArchitecturalLayers() {
+  public fun checkArchitecturalLayers() {
     val failures = violations.get()
     if (failures.isNotEmpty()) {
       throw GradleException(failures.joinToString("\n\n${"=".repeat(80)}\n\n"))
@@ -28,9 +28,9 @@ abstract class CheckArchitecturalLayersTask : DefaultTask() {
   }
 }
 
-@CacheableTask
-abstract class ArchitecturalLayersReportTask : DefaultTask() {
-  @get:Input abstract val reportText: Property<String>
+@DisableCachingByDefault(because = "The task produces no outputs and only logs to the console")
+public abstract class ArchitecturalLayersReportTask : DefaultTask() {
+  @get:Input public abstract val reportText: Property<String>
 
   init {
     group = "help"
@@ -39,7 +39,7 @@ abstract class ArchitecturalLayersReportTask : DefaultTask() {
   }
 
   @TaskAction
-  fun report() {
+  public fun report() {
     logger.quiet(reportText.get())
   }
 }

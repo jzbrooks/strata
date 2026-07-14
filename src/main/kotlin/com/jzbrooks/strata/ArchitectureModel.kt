@@ -1,20 +1,19 @@
 package com.jzbrooks.strata
 
-data class LayerDefinition(
+internal data class LayerDefinition(
     val projectPath: String,
     val index: Int,
     val directDependencies: Set<String>,
     val effectiveDependencies: Set<String>,
 )
 
-data class ProjectClassification(
+internal data class ProjectClassification(
     val projectPath: String,
     val layer: LayerDefinition,
 )
 
 internal data class ArchitectureModel(
     val layers: List<LayerDefinition>,
-    val layersByProjectPath: Map<String, LayerDefinition>,
     val classificationsByPath: Map<String, ProjectClassification>,
     val ignoredProjectPaths: Set<String>,
     val ignoredConfigurationNames: Set<String>,

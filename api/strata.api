@@ -1,0 +1,43 @@
+public abstract class com/jzbrooks/strata/ArchitecturalLayersReportTask : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public abstract fun getReportText ()Lorg/gradle/api/provider/Property;
+	public final fun report ()V
+}
+
+public abstract class com/jzbrooks/strata/CheckArchitecturalLayersTask : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public final fun checkArchitecturalLayers ()V
+	public abstract fun getViolations ()Lorg/gradle/api/provider/ListProperty;
+}
+
+public abstract interface class com/jzbrooks/strata/LayerSpec {
+	public abstract fun dependsOn ([Ljava/lang/String;)V
+	public abstract fun getDependencyPaths ()Lorg/gradle/api/provider/SetProperty;
+	public abstract fun getProjectPath ()Ljava/lang/String;
+}
+
+public abstract class com/jzbrooks/strata/StrataExtension {
+	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public final fun allow (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public abstract fun getIgnoredConfigurationNames ()Lorg/gradle/api/provider/SetProperty;
+	public abstract fun getIgnoredProjectPaths ()Lorg/gradle/api/provider/SetProperty;
+	public abstract fun getUnclassifiedProjects ()Lorg/gradle/api/provider/Property;
+	public final fun ignoreConfiguration (Ljava/lang/String;)V
+	public final fun ignoreProject (Ljava/lang/String;)V
+	public final fun layer (Ljava/lang/String;Lorg/gradle/api/Action;)V
+}
+
+public final class com/jzbrooks/strata/StrataPlugin : org/gradle/api/Plugin {
+	public fun <init> ()V
+	public synthetic fun apply (Ljava/lang/Object;)V
+	public fun apply (Lorg/gradle/api/Project;)V
+}
+
+public final class com/jzbrooks/strata/UnclassifiedProjectPolicy : java/lang/Enum {
+	public static final field FAIL Lcom/jzbrooks/strata/UnclassifiedProjectPolicy;
+	public static final field IGNORE Lcom/jzbrooks/strata/UnclassifiedProjectPolicy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/jzbrooks/strata/UnclassifiedProjectPolicy;
+	public static fun values ()[Lcom/jzbrooks/strata/UnclassifiedProjectPolicy;
+}
+

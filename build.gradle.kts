@@ -17,6 +17,8 @@ repositories {
 }
 
 kotlin {
+  explicitApi()
+  @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class) abiValidation()
   jvmToolchain(17)
   compilerOptions {
     allWarningsAsErrors.set(true)

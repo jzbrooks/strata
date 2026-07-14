@@ -93,6 +93,20 @@ class ArchitectureModelBuilderTest {
   }
 
   @Test
+  fun `rejects a blank ignored configuration name`() {
+    val extension = extension()
+    extension.layer(":app", Action {})
+    extension.ignoredConfigurationNames.add(" ")
+
+    val failure =
+        assertFailsWith<GradleException> {
+          ArchitectureModelBuilder.build(extension, identities(":app"))
+        }
+
+    assertContains(failure.message.orEmpty(), "Ignored configuration names must not be blank")
+  }
+
+  @Test
   fun `ignored project paths cover their subtree`() {
     assertTrue(ArchitectureModelBuilder.isIgnored(":benchmark:jmh", setOf(":benchmark")))
     assertTrue(!ArchitectureModelBuilder.isIgnored(":benchmarking", setOf(":benchmark")))

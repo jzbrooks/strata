@@ -6,7 +6,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 
-class StrataPlugin : Plugin<Project> {
+public class StrataPlugin : Plugin<Project> {
   override fun apply(project: Project) {
     if (project.path != project.isolated.rootProject.path) {
       throw GradleException(
@@ -35,21 +35,10 @@ class StrataPlugin : Plugin<Project> {
     project.gradle.projectsEvaluated {
       finalizeExtension(extension)
 
-      val rootDirectory = project.rootDir.toPath()
       val includedProjects =
           project.allprojects
               .filter { it != project }
-              .map { candidate ->
-                val relativeBuildFile =
-                    runCatching {
-                          rootDirectory
-                              .relativize(candidate.buildFile.toPath())
-                              .toString()
-                              .replace('\\', '/')
-                        }
-                        .getOrDefault(candidate.buildFile.path)
-                ProjectIdentity(candidate.path, relativeBuildFile)
-              }
+              .map { candidate -> ProjectIdentity(candidate.path, relativeBuildFile(candidate)) }
       val model = ArchitectureModelBuilder.build(extension, includedProjects)
       val edges = collectEdges(project)
 
@@ -57,6 +46,16 @@ class StrataPlugin : Plugin<Project> {
       reportTask.configure { it.reportText.set(ArchitectureRendering.report(model)) }
     }
   }
+
+  private fun relativeBuildFile(project: Project): String =
+      runCatching {
+            project.rootDir
+                .toPath()
+                .relativize(project.buildFile.toPath())
+                .toString()
+                .replace('\\', '/')
+          }
+          .getOrDefault(project.buildFile.path)
 
   private fun finalizeExtension(extension: StrataExtension) {
     for (layer in extension.layers()) {
@@ -71,15 +70,7 @@ class StrataPlugin : Plugin<Project> {
     rootProject.allprojects
         .filter { it != rootProject }
         .forEach { source ->
-          val relativeBuildFile =
-              runCatching {
-                    rootProject.rootDir
-                        .toPath()
-                        .relativize(source.buildFile.toPath())
-                        .toString()
-                        .replace('\\', '/')
-                  }
-                  .getOrDefault(source.buildFile.path)
+          val relativeBuildFile = relativeBuildFile(source)
           source.configurations
               .filter { it.isCanBeDeclared }
               .forEach { configuration ->

@@ -7,7 +7,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 
 /** Configures the logical architecture for a Gradle build. */
-abstract class StrataExtension
+public abstract class StrataExtension
 @Inject
 constructor(
     private val objects: ObjectFactory,
@@ -15,9 +15,9 @@ constructor(
   private val declaredLayers = mutableListOf<LayerSpec>()
   private val declaredAllowances = mutableListOf<AllowanceSpec>()
 
-  abstract val ignoredProjectPaths: SetProperty<String>
-  abstract val ignoredConfigurationNames: SetProperty<String>
-  abstract val unclassifiedProjects: Property<UnclassifiedProjectPolicy>
+  public abstract val ignoredProjectPaths: SetProperty<String>
+  public abstract val ignoredConfigurationNames: SetProperty<String>
+  public abstract val unclassifiedProjects: Property<UnclassifiedProjectPolicy>
 
   init {
     ignoredProjectPaths.convention(emptySet())
@@ -25,21 +25,21 @@ constructor(
     unclassifiedProjects.convention(UnclassifiedProjectPolicy.FAIL)
   }
 
-  fun layer(projectPath: String, configure: Action<LayerSpec>) {
+  public fun layer(projectPath: String, configure: Action<LayerSpec>) {
     val layer = objects.newInstance(DefaultLayerSpec::class.java, projectPath)
     configure.execute(layer)
     declaredLayers += layer
   }
 
-  fun ignoreProject(path: String) {
+  public fun ignoreProject(path: String) {
     ignoredProjectPaths.add(path)
   }
 
-  fun ignoreConfiguration(name: String) {
+  public fun ignoreConfiguration(name: String) {
     ignoredConfigurationNames.add(name)
   }
 
-  fun allow(from: String, to: String, because: String) {
+  public fun allow(from: String, to: String, because: String) {
     declaredAllowances += AllowanceSpec(from, to, because)
   }
 
@@ -48,11 +48,11 @@ constructor(
   internal fun allowances(): List<AllowanceSpec> = declaredAllowances.toList()
 }
 
-interface LayerSpec {
-  val projectPath: String
-  val dependencyPaths: SetProperty<String>
+public interface LayerSpec {
+  public val projectPath: String
+  public val dependencyPaths: SetProperty<String>
 
-  fun dependsOn(vararg layerProjectPaths: String)
+  public fun dependsOn(vararg layerProjectPaths: String)
 }
 
 internal abstract class DefaultLayerSpec
@@ -67,7 +67,7 @@ constructor(
   }
 }
 
-enum class UnclassifiedProjectPolicy {
+public enum class UnclassifiedProjectPolicy {
   FAIL,
   IGNORE,
 }

@@ -61,9 +61,8 @@ internal object ArchitectureModelBuilder {
           validateExistingProjectPath(path, "Ignored project path", projectPaths, errors)
         }
     val ignoredConfigurations = extension.ignoredConfigurationNames.orNull.orEmpty().toSet()
-    val blankIgnoredConfigurations = ignoredConfigurations.count { it.isBlank() }
-    if (blankIgnoredConfigurations > 1) {
-      errors += "$blankIgnoredConfigurations ignored configuration names must not be blank."
+    if (ignoredConfigurations.any { it.isBlank() }) {
+      errors += "Ignored configuration names must not be blank."
     }
 
     val allowances =
@@ -116,7 +115,6 @@ internal object ArchitectureModelBuilder {
     if (errors.isNotEmpty()) throw GradleException(errors.joinToString("\n\n"))
     return ArchitectureModel(
         layers,
-        byPath,
         classifications,
         ignoredPaths,
         ignoredConfigurations,

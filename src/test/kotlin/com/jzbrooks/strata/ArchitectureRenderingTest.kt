@@ -53,7 +53,6 @@ class ArchitectureRenderingTest {
   private fun model(vararg classifications: ProjectClassification) =
       ArchitectureModel(
           layers,
-          layers.associateBy { it.projectPath },
           classifications.associateBy { it.projectPath },
           emptySet(),
           emptySet(),
