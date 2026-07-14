@@ -10,7 +10,13 @@ version = "0.1.0-SNAPSHOT"
 
 repositories { mavenCentral() }
 
-kotlin { jvmToolchain(17) }
+kotlin {
+  jvmToolchain(17)
+  compilerOptions {
+    allWarningsAsErrors.set(true)
+    extraWarnings.set(true)
+  }
+}
 
 gradlePlugin {
   plugins {

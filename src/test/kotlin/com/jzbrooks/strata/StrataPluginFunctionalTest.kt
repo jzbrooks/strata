@@ -120,7 +120,7 @@ class StrataPluginFunctionalTest {
   @Test
   fun `renders report by layer project`() {
     fixture(standardProjects(), kotlinRootBuild())
-    val output = run("architectureLayersReport").output
+    val output = run("architecturalLayersReport").output
     assertContains(output, "1. Layer project: :app")
     assertContains(output, ":app:checkout")
     assertContains(output, "Direct dependencies:\n     :data")
