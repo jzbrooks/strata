@@ -2,12 +2,13 @@ plugins {
   id("org.jetbrains.kotlin.jvm") version "2.4.0"
   id("com.android.lint") version "9.2.1"
   id("com.ncorti.ktfmt.gradle") version "0.26.0"
+  id("org.jetbrains.changelog") version "2.5.0"
+  id("com.vanniktech.maven.publish") version "0.37.0"
   `java-gradle-plugin`
 }
 
 group = "com.jzbrooks.strata"
-
-version = "0.1.0-SNAPSHOT"
+version = property("VERSION_NAME").toString()
 
 repositories {
   google()
@@ -33,6 +34,8 @@ gradlePlugin {
     }
   }
 }
+
+changelog.path.set("changelog.md")
 
 dependencies {
   lintChecks("androidx.lint:lint-gradle:1.0.0")
