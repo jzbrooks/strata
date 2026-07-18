@@ -1,6 +1,6 @@
 package com.jzbrooks.strata
 
-import kotlin.collections.linkedSetOf
+import kotlin.collections.mutableSetOf
 import org.gradle.api.GradleException
 
 internal object ArchitectureModelBuilder {
@@ -9,8 +9,8 @@ internal object ArchitectureModelBuilder {
 
   fun build(extension: StrataExtension, projects: List<ProjectIdentity>): ArchitectureModel {
     val errors = mutableListOf<String>()
-    val projectPaths = projects.mapTo(linkedSetOf()) { it.path }
-    val seenLayerPaths = linkedSetOf<String>()
+    val projectPaths = projects.mapTo(mutableSetOf()) { it.path }
+    val seenLayerPaths = mutableSetOf<String>()
 
     if (extension.layers().isEmpty()) errors += "At least one architectural layer must be declared."
 
@@ -18,31 +18,34 @@ internal object ArchitectureModelBuilder {
         extension.layers().mapIndexed { index, spec ->
           val path = spec.projectPath
           validateLayerPath(path, projectPaths, errors)
+
           if (!seenLayerPaths.add(path)) {
             errors += "Architectural layer project '$path' is declared more than once."
           }
 
-          val dependencies = linkedSetOf<String>()
-          spec.dependencyPaths.orNull.orEmpty().forEach { dependency ->
-            if (validateDependencyPath(path, dependency, errors)) dependencies += dependency
+          val dependencies = mutableSetOf<String>()
+          for (dependency in spec.dependencyPaths.orNull ?: emptySet()) {
+            if (validateDependencyPath(path, dependency, errors)) dependencies.add(dependency)
           }
+
           UnresolvedLayer(path, index, dependencies)
         }
 
-    val layerPaths = unresolvedLayers.mapTo(linkedSetOf()) { it.projectPath }
-    unresolvedLayers.forEach { layer ->
-      layer.dependencies.forEach { dependency ->
+    val layerPaths = unresolvedLayers.mapTo(mutableSetOf()) { it.projectPath }
+    for ((projectPath, _, dependencies) in unresolvedLayers) {
+      for (dependency in dependencies) {
         when (dependency) {
-          layer.projectPath ->
-              errors +=
-                  "Architectural layer project '${layer.projectPath}' must not depend on itself."
+          projectPath ->
+              errors += "Architectural layer project '$projectPath' must not depend on itself."
           !in layerPaths ->
               errors +=
-                  "Architectural layer project '${layer.projectPath}' depends on unknown layer project '$dependency'."
+                  "Architectural layer project '$projectPath' depends on unknown layer project '$dependency'."
         }
       }
     }
-    findCycle(unresolvedLayers)?.let { cycle ->
+
+    val cycle = findCycle(unresolvedLayers)
+    if (cycle != null) {
       errors += "Architectural layer dependency cycle detected: ${cycle.joinToString(" -> ")}"
     }
 
@@ -52,21 +55,22 @@ internal object ArchitectureModelBuilder {
           layer.projectPath,
           layer.index,
           layer.dependencies,
-          reachableDependencies(layer.projectPath, dependenciesByPath),
+          collectReachableDependencies(layer.projectPath, dependenciesByPath),
       )
     }
 
     val ignoredPaths =
-        extension.ignoredProjectPaths.orNull.orEmpty().mapNotNullTo(linkedSetOf()) { path ->
+        extension.ignoredProjectPaths.orNull.orEmpty().mapNotNullTo(mutableSetOf()) { path ->
           validateExistingProjectPath(path, "Ignored project path", projectPaths, errors)
         }
+
     val ignoredConfigurations = extension.ignoredConfigurationNames.orNull.orEmpty().toSet()
     if (ignoredConfigurations.any { it.isBlank() }) {
       errors += "Ignored configuration names must not be blank."
     }
 
     val allowances =
-        extension.allowances().mapNotNullTo(linkedSetOf()) { allowance ->
+        extension.allowances().mapNotNullTo(mutableSetOf()) { allowance ->
           if (allowance.because.isBlank()) {
             errors +=
                 "Architecture exception from '${allowance.from}' to '${allowance.to}' must include a non-blank justification."
@@ -91,28 +95,35 @@ internal object ArchitectureModelBuilder {
     val byPath = layers.associateByTo(linkedMapOf()) { it.projectPath }
     val classifications = linkedMapOf<String, ProjectClassification>()
     val unclassified = mutableListOf<String>()
-    projects.forEach { project ->
-      if (isIgnored(project.path, ignoredPaths)) return@forEach
-      val layerPath = ":" + project.path.removePrefix(":").substringBefore(':')
+
+    for ((path) in projects.filter { !isIgnored(it.path, ignoredPaths) }) {
+      val layerPath = ":" + path.removePrefix(":").substringBefore(':')
       val layer = byPath[layerPath]
-      if (layer == null) unclassified += project.path
-      else classifications[project.path] = ProjectClassification(project.path, layer)
+      if (layer == null) {
+        unclassified += path
+      } else {
+        classifications[path] = ProjectClassification(path, layer)
+      }
     }
 
-    if (
-        extension.unclassifiedProjects.get() == UnclassifiedProjectPolicy.FAIL &&
-            unclassified.isNotEmpty()
-    ) {
+    val shouldFailUnclassified =
+        unclassified.isNotEmpty() &&
+            extension.unclassifiedProjects.get() == UnclassifiedProjectPolicy.FAIL
+
+    if (shouldFailUnclassified) {
       errors += buildString {
         appendLine("The following projects are not assigned to an architectural layer:")
-        unclassified.sorted().forEach { appendLine("  $it") }
-        append(
+        for (project in unclassified.sorted()) {
+          appendLine("  $project")
+        }
+        appendLine(
             "Declare their top-level projects as layers, ignore their project subtrees, or set unclassifiedProjects to IGNORE."
         )
       }
     }
 
     if (errors.isNotEmpty()) throw GradleException(errors.joinToString("\n\n"))
+
     return ArchitectureModel(
         layers,
         classifications,
@@ -183,13 +194,13 @@ internal object ArchitectureModelBuilder {
     return path
   }
 
-  private fun reachableDependencies(
+  private fun collectReachableDependencies(
       layerPath: String,
       dependenciesByPath: Map<String, Set<String>>,
   ): Set<String> {
-    val reachable = linkedSetOf<String>()
+    val reachable = mutableSetOf<String>()
     fun visit(path: String) {
-      dependenciesByPath[path].orEmpty().forEach { dependency ->
+      for (dependency in dependenciesByPath[path] ?: emptySet()) {
         if (dependency in dependenciesByPath && reachable.add(dependency)) visit(dependency)
       }
     }
@@ -199,10 +210,10 @@ internal object ArchitectureModelBuilder {
   }
 
   private fun findCycle(layers: List<UnresolvedLayer>): List<String>? {
-    val knownPaths = layers.mapTo(linkedSetOf()) { it.projectPath }
+    val knownPaths = layers.mapTo(mutableSetOf()) { it.projectPath }
     val dependencies = layers.associate {
       it.projectPath to
-          it.dependencies.filterTo(linkedSetOf()) { dependency ->
+          it.dependencies.filterTo(mutableSetOf()) { dependency ->
             dependency in knownPaths && dependency != it.projectPath
           }
     }
@@ -217,16 +228,22 @@ internal object ArchitectureModelBuilder {
       if (!visited.add(projectPath)) return null
       active += projectPath
       path += projectPath
-      for (dependency in dependencies[projectPath].orEmpty()) visit(dependency)?.let {
-        return it
+      for (dependency in dependencies[projectPath] ?: emptySet()) {
+        visit(dependency)?.let {
+          return it
+        }
       }
       path.removeAt(path.lastIndex)
       active -= projectPath
       return null
     }
-    for (layer in layers) visit(layer.projectPath)?.let {
-      return it
+
+    for ((projectPath) in layers) {
+      visit(projectPath)?.let {
+        return it
+      }
     }
+
     return null
   }
 

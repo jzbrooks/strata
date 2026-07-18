@@ -73,10 +73,14 @@ internal object ArchitectureRendering {
       appendLine()
       appendLine("Declared layer dependencies:")
       if (directLayers.isEmpty()) appendLine("  (none)")
-      directLayers.forEach { appendLine("  ${it.projectPath}") }
+      for (it in directLayers) {
+        appendLine("  ${it.projectPath}")
+      }
       appendLine()
       appendLine("Allowed layer projects:")
-      allowedLayers.forEach { appendLine("  ${it.projectPath}") }
+      for (it in allowedLayers) {
+        appendLine("  ${it.projectPath}")
+      }
       appendLine()
       appendLine("Likely declaration:")
       appendLine("  ${edge.configuration}(project(\"${target.projectPath}\"))")
@@ -101,6 +105,8 @@ internal object ArchitectureRendering {
   private fun StringBuilder.appendLayers(model: ArchitectureModel, paths: Set<String>) {
     val layers = model.layers.filter { it.projectPath in paths }
     if (layers.isEmpty()) appendLine("     (none)")
-    layers.forEach { appendLine("     ${it.projectPath}") }
+    for (it in layers) {
+      appendLine("     ${it.projectPath}")
+    }
   }
 }
