@@ -16,6 +16,12 @@ public abstract interface class com/jzbrooks/strata/LayerSpec {
 	public abstract fun getProjectPath ()Ljava/lang/String;
 }
 
+public final class com/jzbrooks/strata/StrataCollectorPlugin : org/gradle/api/Plugin {
+	public fun <init> ()V
+	public synthetic fun apply (Ljava/lang/Object;)V
+	public fun apply (Lorg/gradle/api/initialization/Settings;)V
+}
+
 public abstract class com/jzbrooks/strata/StrataExtension {
 	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
 	public final fun allow (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
