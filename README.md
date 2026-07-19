@@ -21,6 +21,16 @@ Root project 'example'
 
 ## Kotlin DSL
 
+Apply the bootstrap plugin in `settings.gradle.kts`:
+
+```kotlin
+plugins {
+    id("com.jzbrooks.strata.collector") version "0.0.1"
+}
+```
+
+Then apply and configure Strata in the root build:
+
 ```kotlin
 plugins {
     id("com.jzbrooks.strata") version "0.0.1"
@@ -48,7 +58,7 @@ strata {
 }
 ```
 
-Apply and configure Strata once in the root project. Layer identities and `dependsOn` values must be absolute paths to
+Configure Strata once in the root project. Layer identities and `dependsOn` values must be absolute paths to
 top-level projects, including the leading colon. Each layer may depend on its own project subtree and on layers reachable
 through its explicit `dependsOn` declarations. Dependencies are transitive, forward references are supported, and
 declaration order affects only report display. Cycles and unknown layer paths are configuration errors. Direct project
@@ -60,6 +70,13 @@ Ignored project paths cover the named project and its descendants.
 Allowances match only the exact directed source and target paths and require a non-blank justification.
 
 ## Groovy DSL
+
+```groovy
+// settings.gradle
+plugins {
+    id 'com.jzbrooks.strata.collector' version '0.0.1'
+}
+```
 
 ```groovy
 plugins {

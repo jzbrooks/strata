@@ -158,6 +158,55 @@ class StrataPluginFunctionalTest {
     )
   }
 
+  @Test
+  fun `supports isolated projects and reuses their configuration cache`() {
+    fixture(standardProjects(), kotlinRootBuild(), mapOf(":app" to listOf(":data:users")))
+    val arguments =
+        arrayOf(
+            "-Dorg.gradle.unsafe.isolated-projects=true",
+            "-Dorg.gradle.unsafe.isolated-projects.diagnostics=true",
+        )
+
+    val first = run("checkArchitecturalLayers", *arguments)
+    assertEquals(TaskOutcome.SUCCESS, first.task(":checkArchitecturalLayers")?.outcome)
+    assertContains(first.output, "No forbidden architectural dependencies found")
+    assertContains(
+        run("checkArchitecturalLayers", *arguments).output,
+        "Reusing configuration cache",
+    )
+  }
+
+  @Test
+  fun `reports forbidden dependencies with isolated projects`() {
+    fixture(standardProjects(), kotlinRootBuild(), mapOf(":infrastructure:http" to listOf(":app")))
+
+    val output =
+        runAndFail(
+                "checkArchitecturalLayers",
+                "-Dorg.gradle.unsafe.isolated-projects=true",
+                "-Dorg.gradle.unsafe.isolated-projects.diagnostics=true",
+            )
+            .output
+    assertContains(output, "Forbidden architectural dependency: :infrastructure -> :app")
+    assertContains(output, "Source project:          :infrastructure:http")
+    assertContains(output, "Configuration:           implementation")
+    assertContains(output, "infrastructure/http/build.gradle.kts")
+  }
+
+  @Test
+  fun `renders report with isolated projects`() {
+    fixture(standardProjects(), kotlinRootBuild())
+    val output =
+        run(
+                "architecturalLayersReport",
+                "-Dorg.gradle.unsafe.isolated-projects=true",
+                "-Dorg.gradle.unsafe.isolated-projects.diagnostics=true",
+            )
+            .output
+    assertContains(output, "1. Layer project: :app")
+    assertContains(output, ":app:checkout")
+  }
+
   private fun fixture(
       projects: List<String>,
       rootBuild: String,
@@ -168,7 +217,9 @@ class StrataPluginFunctionalTest {
     testProjectDir
         .resolve("settings.gradle.kts")
         .writeText(
-            "rootProject.name = \"fixture\"\n" + projects.joinToString("\n") { "include(\"$it\")" }
+            "plugins { id(\"com.jzbrooks.strata.collector\") }\n" +
+                "rootProject.name = \"fixture\"\n" +
+                projects.joinToString("\n") { "include(\"$it\")" }
         )
     testProjectDir.resolve(if (groovy) "build.gradle" else "build.gradle.kts").writeText(rootBuild)
     projects.forEach { path ->

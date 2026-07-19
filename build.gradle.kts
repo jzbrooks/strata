@@ -28,6 +28,12 @@ kotlin {
 
 gradlePlugin {
   plugins {
+    create("strataCollector") {
+      id = "com.jzbrooks.strata.collector"
+      implementationClass = "com.jzbrooks.strata.StrataCollectorPlugin"
+      displayName = "Strata settings bootstrap"
+      description = "Enables isolated dependency collection for Strata"
+    }
     create("strata") {
       id = "com.jzbrooks.strata"
       implementationClass = "com.jzbrooks.strata.StrataPlugin"

@@ -3,7 +3,6 @@ package com.jzbrooks.strata
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 
 public class StrataPlugin : Plugin<Project> {
@@ -31,31 +30,52 @@ public class StrataPlugin : Plugin<Project> {
             ArchitecturalLayersReportTask::class.java,
         )
     project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME).configure { it.dependsOn(checkTask) }
+    val dependencyEdgesService =
+        project.gradle.sharedServices.registerIfAbsent(
+            DEPENDENCY_EDGES_SERVICE,
+            DependencyEdgesService::class.java,
+        ) {}
 
-    project.gradle.projectsEvaluated {
+    project.afterEvaluate {
       finalizeExtension(extension)
 
       val includedProjects =
           project.allprojects
               .filter { it != project }
-              .map { candidate -> ProjectIdentity(candidate.path, relativeBuildFile(candidate)) }
+              .map { candidate -> ProjectIdentity(candidate.isolated.path, "") }
       val model = ArchitectureModelBuilder.build(extension, includedProjects)
-      val edges = collectEdges(project)
-
-      checkTask.configure { it.violations.set(ArchitectureRendering.violations(model, edges)) }
+      checkTask.configure {
+        it.dependsOn(
+            includedProjects.map { identity -> "${identity.path}:$COLLECT_DEPENDENCIES_TASK" }
+        )
+        it.dependencyEdgesService.set(dependencyEdgesService)
+        it.usesService(dependencyEdgesService)
+        it.layerDefinitions.set(model.layers.map(::encodeLayer))
+        it.projectClassifications.set(
+            model.classificationsByPath.values.map { classification ->
+              listOf(classification.projectPath, classification.layer.projectPath)
+                  .joinToString(FIELD_SEPARATOR.toString())
+            }
+        )
+        it.ignoredProjectPaths.set(model.ignoredProjectPaths.toList())
+        it.ignoredConfigurationNames.set(model.ignoredConfigurationNames.toList())
+        it.allowances.set(
+            model.allowances.map { allowance ->
+              listOf(allowance.from, allowance.to).joinToString(FIELD_SEPARATOR.toString())
+            }
+        )
+      }
       reportTask.configure { it.reportText.set(ArchitectureRendering.report(model)) }
     }
   }
 
-  private fun relativeBuildFile(project: Project): String =
-      runCatching {
-            project.rootDir
-                .toPath()
-                .relativize(project.buildFile.toPath())
-                .toString()
-                .replace('\\', '/')
-          }
-          .getOrDefault(project.buildFile.path)
+  private fun encodeLayer(layer: LayerDefinition): String =
+      listOf(
+              layer.projectPath,
+              layer.directDependencies.joinToString(","),
+              layer.effectiveDependencies.joinToString(","),
+          )
+          .joinToString(FIELD_SEPARATOR.toString())
 
   private fun finalizeExtension(extension: StrataExtension) {
     for (layer in extension.layers()) {
@@ -64,28 +84,5 @@ public class StrataPlugin : Plugin<Project> {
     extension.ignoredProjectPaths.finalizeValue()
     extension.ignoredConfigurationNames.finalizeValue()
     extension.unclassifiedProjects.finalizeValue()
-  }
-
-  private fun collectEdges(rootProject: Project): List<DependencyEdge> = buildList {
-    rootProject.allprojects
-        .filter { it != rootProject }
-        .forEach { source ->
-          val relativeBuildFile = relativeBuildFile(source)
-          source.configurations
-              .filter { it.isCanBeDeclared }
-              .forEach { configuration ->
-                configuration.dependencies.withType(ProjectDependency::class.java).forEach {
-                    dependency ->
-                  add(
-                      DependencyEdge(
-                          sourcePath = source.path,
-                          targetPath = dependency.path,
-                          configuration = configuration.name,
-                          buildFile = relativeBuildFile,
-                      ),
-                  )
-                }
-              }
-        }
   }
 }
