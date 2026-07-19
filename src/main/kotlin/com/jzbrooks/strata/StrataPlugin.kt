@@ -14,22 +14,26 @@ public class StrataPlugin : Plugin<Project> {
     }
 
     project.pluginManager.apply("base")
-    val extension =
-        project.extensions.create(
-            "strata",
-            StrataExtension::class.java,
-        )
-    val checkTask =
-        project.tasks.register(
-            "checkArchitecturalLayers",
-            CheckArchitecturalLayersTask::class.java,
-        )
-    val reportTask =
-        project.tasks.register(
-            "architecturalLayersReport",
-            ArchitecturalLayersReportTask::class.java,
-        )
-    project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME).configure { it.dependsOn(checkTask) }
+    project.extensions.create(
+        "strata",
+        StrataExtension::class.java,
+    )
+
+    project.tasks.apply {
+      val checkTask =
+          register(
+              "checkArchitecturalLayers",
+              CheckArchitecturalLayersTask::class.java,
+          )
+
+      register(
+          "architecturalLayersReport",
+          ArchitecturalLayersReportTask::class.java,
+      )
+
+      named(LifecycleBasePlugin.CHECK_TASK_NAME).configure { it.dependsOn(checkTask) }
+    }
+
     val dependencyEdgesService =
         project.gradle.sharedServices.registerIfAbsent(
             DEPENDENCY_EDGES_SERVICE,
@@ -38,67 +42,19 @@ public class StrataPlugin : Plugin<Project> {
           it.parameters.bootstrapApplied.convention(false)
         }
 
-    project.afterEvaluate {
-      if (!dependencyEdgesService.get().parameters.bootstrapApplied.get()) {
-        throw GradleException(
-            """
-            Strata dependency collection is not enabled.
+    if (!dependencyEdgesService.get().parameters.bootstrapApplied.get()) {
+      throw GradleException(
+          """
+          Strata dependency collection is not enabled.
 
-            Apply the collector plugin in settings.gradle.kts:
+          Apply the collector plugin in settings.gradle.kts:
 
-            plugins {
-                id("com.jzbrooks.strata.collector") version "<same version>"
-            }
-            """
-                .trimIndent()
-        )
-      }
-      finalizeExtension(extension)
-
-      val includedProjects =
-          project.allprojects
-              .filter { it != project }
-              .map { candidate -> ProjectIdentity(candidate.isolated.path, "") }
-      val model = ArchitectureModelBuilder.build(extension, includedProjects)
-      checkTask.configure {
-        it.dependsOn(
-            includedProjects.map { identity -> "${identity.path}:$COLLECT_DEPENDENCIES_TASK" }
-        )
-        it.dependencyEdgesService.set(dependencyEdgesService)
-        it.usesService(dependencyEdgesService)
-        it.layerDefinitions.set(model.layers.map(::encodeLayer))
-        it.projectClassifications.set(
-            model.classificationsByPath.values.map { classification ->
-              listOf(classification.projectPath, classification.layer.projectPath)
-                  .joinToString(FIELD_SEPARATOR.toString())
-            }
-        )
-        it.ignoredProjectPaths.set(model.ignoredProjectPaths.toList())
-        it.ignoredConfigurationNames.set(model.ignoredConfigurationNames.toList())
-        it.allowances.set(
-            model.allowances.map { allowance ->
-              listOf(allowance.from, allowance.to).joinToString(FIELD_SEPARATOR.toString())
-            }
-        )
-      }
-      reportTask.configure { it.reportText.set(ArchitectureRendering.report(model)) }
+          plugins {
+              id("com.jzbrooks.strata.collector") version "<same version>"
+          }
+          """
+              .trimIndent()
+      )
     }
-  }
-
-  private fun encodeLayer(layer: LayerDefinition): String =
-      listOf(
-              layer.projectPath,
-              layer.directDependencies.joinToString(","),
-              layer.effectiveDependencies.joinToString(","),
-          )
-          .joinToString(FIELD_SEPARATOR.toString())
-
-  private fun finalizeExtension(extension: StrataExtension) {
-    for (layer in extension.layers()) {
-      layer.dependencyPaths.finalizeValue()
-    }
-    extension.ignoredProjectPaths.finalizeValue()
-    extension.ignoredConfigurationNames.finalizeValue()
-    extension.unclassifiedProjects.finalizeValue()
   }
 }

@@ -48,7 +48,10 @@ internal abstract class CollectProjectDependenciesTask : DefaultTask() {
 
 internal class CollectProjectDependenciesAction : IsolatedAction<Project> {
   override fun execute(project: Project) {
-    if (project.path == project.isolated.rootProject.path) return
+    if (project.path == project.isolated.rootProject.path) {
+      configureRootProject(project)
+      return
+    }
     val service =
         project.gradle.sharedServices.registerIfAbsent(
             DEPENDENCY_EDGES_SERVICE,
@@ -58,6 +61,56 @@ internal class CollectProjectDependenciesAction : IsolatedAction<Project> {
       it.encodedEdges.set(collectProjectDependencyEdges(project))
       it.dependencyEdgesService.set(service)
       it.usesService(service)
+    }
+  }
+
+  private fun configureRootProject(project: Project) {
+    if (!project.pluginManager.hasPlugin("com.jzbrooks.strata")) return
+
+    val extension = project.extensions.getByType(StrataExtension::class.java)
+    finalizeStrataExtension(extension)
+    val includedProjects =
+        project.allprojects
+            .asSequence()
+            .filter { candidate -> candidate.path != project.path }
+            .map { candidate -> ProjectIdentity(candidate.isolated.path, "") }
+            .toList()
+    val model = ArchitectureModelBuilder.build(extension, includedProjects)
+    val service =
+        project.gradle.sharedServices.registerIfAbsent(
+            DEPENDENCY_EDGES_SERVICE,
+            DependencyEdgesService::class.java,
+        ) {}
+
+    project.tasks.named(
+        "checkArchitecturalLayers",
+        CheckArchitecturalLayersTask::class.java,
+    ) {
+      it.dependsOn(
+          includedProjects.map { identity -> "${identity.path}:$COLLECT_DEPENDENCIES_TASK" }
+      )
+      it.dependencyEdgesService.set(service)
+      it.usesService(service)
+      it.layerDefinitions.set(model.layers.map(::encodeLayer))
+      it.projectClassifications.set(
+          model.classificationsByPath.values.map { classification ->
+            listOf(classification.projectPath, classification.layer.projectPath)
+                .joinToString(FIELD_SEPARATOR.toString())
+          }
+      )
+      it.ignoredProjectPaths.set(model.ignoredProjectPaths.toList())
+      it.ignoredConfigurationNames.set(model.ignoredConfigurationNames.toList())
+      it.allowances.set(
+          model.allowances.map { allowance ->
+            listOf(allowance.from, allowance.to).joinToString(FIELD_SEPARATOR.toString())
+          }
+      )
+    }
+    project.tasks.named(
+        "architecturalLayersReport",
+        ArchitecturalLayersReportTask::class.java,
+    ) {
+      it.reportText.set(ArchitectureRendering.report(model))
     }
   }
 
@@ -82,4 +135,21 @@ internal class CollectProjectDependenciesAction : IsolatedAction<Project> {
                 .replace('\\', '/')
           }
           .getOrDefault(project.buildFile.path)
+}
+
+private fun encodeLayer(layer: LayerDefinition): String =
+    listOf(
+            layer.projectPath,
+            layer.directDependencies.joinToString(","),
+            layer.effectiveDependencies.joinToString(","),
+        )
+        .joinToString(FIELD_SEPARATOR.toString())
+
+private fun finalizeStrataExtension(extension: StrataExtension) {
+  for (layer in extension.layers()) {
+    layer.dependencyPaths.finalizeValue()
+  }
+  extension.ignoredProjectPaths.finalizeValue()
+  extension.ignoredConfigurationNames.finalizeValue()
+  extension.unclassifiedProjects.finalizeValue()
 }
