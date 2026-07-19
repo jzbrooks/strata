@@ -14,7 +14,11 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
-internal abstract class DependencyEdgesService : BuildService<BuildServiceParameters.None> {
+internal interface DependencyEdgesServiceParameters : BuildServiceParameters {
+  val bootstrapApplied: Property<Boolean>
+}
+
+internal abstract class DependencyEdgesService : BuildService<DependencyEdgesServiceParameters> {
   private val edges = ConcurrentLinkedQueue<DependencyEdge>()
 
   fun addAll(values: List<DependencyEdge>) {

@@ -159,6 +159,22 @@ class StrataPluginFunctionalTest {
   }
 
   @Test
+  fun `explains how to enable dependency collection when settings plugin is missing`() {
+    val projects = standardProjects()
+    fixture(projects, kotlinRootBuild())
+    testProjectDir
+        .resolve("settings.gradle.kts")
+        .writeText(
+            "rootProject.name = \"fixture\"\n" + projects.joinToString("\n") { "include(\"$it\")" }
+        )
+
+    val output = runAndFail("checkArchitecturalLayers").output
+    assertContains(output, "Strata dependency collection is not enabled.")
+    assertContains(output, "id(\"com.jzbrooks.strata.collector\") version \"<same version>\"")
+    assertContains(output, "settings.gradle.kts")
+  }
+
+  @Test
   fun `supports isolated projects and reuses their configuration cache`() {
     fixture(standardProjects(), kotlinRootBuild(), mapOf(":app" to listOf(":data:users")))
     val arguments =
