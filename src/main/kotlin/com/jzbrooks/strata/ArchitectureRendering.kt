@@ -87,7 +87,7 @@ internal object ArchitectureRendering {
       appendLine()
       appendLine("Suggested fixes:")
       appendLine(
-          "- If architecturally appropriate, add dependsOn(\"${target.layer.projectPath}\") to layer(\"${source.layer.projectPath}\")."
+          "- If architecturally sound, add dependsOn(\"${target.layer.projectPath}\") to layer(\"${source.layer.projectPath}\")."
       )
       appendLine(
           "- Move the shared abstraction into the '${source.layer.projectPath}' project subtree."
@@ -97,7 +97,7 @@ internal object ArchitectureRendering {
       )
       appendLine("- Reconsider the layer boundary represented by '${target.layer.projectPath}'.")
       append(
-          "- Add a narrow documented exception only when the violation is intentional and temporary."
+          "- Add a narrow, documented exception only when the violation is intentional and temporary."
       )
     }
   }
@@ -105,8 +105,8 @@ internal object ArchitectureRendering {
   private fun StringBuilder.appendLayers(model: ArchitectureModel, paths: Set<String>) {
     val layers = model.layers.filter { it.projectPath in paths }
     if (layers.isEmpty()) appendLine("     (none)")
-    for (it in layers) {
-      appendLine("     ${it.projectPath}")
+    for ((projectPath) in layers) {
+      appendLine("     $projectPath")
     }
   }
 }
