@@ -8,7 +8,9 @@ public class StrataCollectorPlugin : Plugin<Settings> {
     settings.gradle.sharedServices.registerIfAbsent(
         DEPENDENCY_EDGES_SERVICE,
         DependencyEdgesService::class.java,
-    ) {}
+    ) {
+      it.parameters.bootstrapApplied.set(true)
+    }
     settings.gradle.lifecycle.afterProject(CollectProjectDependenciesAction())
   }
 }

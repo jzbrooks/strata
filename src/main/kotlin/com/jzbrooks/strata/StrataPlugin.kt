@@ -34,9 +34,25 @@ public class StrataPlugin : Plugin<Project> {
         project.gradle.sharedServices.registerIfAbsent(
             DEPENDENCY_EDGES_SERVICE,
             DependencyEdgesService::class.java,
-        ) {}
+        ) {
+          it.parameters.bootstrapApplied.convention(false)
+        }
 
     project.afterEvaluate {
+      if (!dependencyEdgesService.get().parameters.bootstrapApplied.get()) {
+        throw GradleException(
+            """
+            Strata dependency collection is not enabled.
+
+            Apply the collector plugin in settings.gradle.kts:
+
+            plugins {
+                id("com.jzbrooks.strata.collector") version "<same version>"
+            }
+            """
+                .trimIndent()
+        )
+      }
       finalizeExtension(extension)
 
       val includedProjects =
