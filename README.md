@@ -85,7 +85,20 @@ strata {
 }
 ```
 
-For example, this dependency points against the configured layer direction:
+Configure Strata once in the root project. Layer identities and `dependsOn` values must be absolute paths to
+top-level projects, including the leading colon.
+* Each layer may depend on its own project subtree and on layers reachable through its explicit `dependsOn` declarations.
+* Dependencies are transitive, forward references are supported, and declaration order affects only report display.
+* Cycles and unknown layer paths are configuration errors.
+* Direct project dependencies declared in all declarable configurations are checked without resolving configurations.
+
+Run `./gradlew checkArchitecturalLayers` to validate the build or `./gradlew architecturalLayersReport` to inspect the classification. `checkArchitecturalLayers` is also attached to the root `check` lifecycle task.
+
+Ignored project paths cover the named project and its descendants.
+Allowances match only the exact directed source and target paths and require a non-blank justification.
+
+## Example Failure
+If dependency points against the configured layer direction:
 
 ```kotlin
 // infrastructure/telemetry/build.gradle.kts
@@ -118,17 +131,15 @@ Suggested fixes:
 - Add a narrow, documented exception only when the violation is intentional and temporary.
 ```
 
-Configure Strata once in the root project. Layer identities and `dependsOn` values must be absolute paths to
-top-level projects, including the leading colon.
-* Each layer may depend on its own project subtree and on layers reachable through its explicit `dependsOn` declarations.
-* Dependencies are transitive, forward references are supported, and declaration order affects only report display.
-* Cycles and unknown layer paths are configuration errors.
-* Direct project dependencies declared in all declarable configurations are checked without resolving configurations.
+## Build
 
-Run `./gradlew checkArchitecturalLayers` to validate the build or `./gradlew architecturalLayersReport` to inspect the classification. `checkArchitecturalLayers` is also attached to the root `check` lifecycle task.
+This project uses the Gradle build system.
 
-Ignored project paths cover the named project and its descendants.
-Allowances match only the exact directed source and target paths and require a non-blank justification.
+To build the jars: `./gradlew assemble`
+
+To run the tests: `./gradlew check`
+
+To see all available tasks: `./gradlew tasks`
 
 ## License
 
