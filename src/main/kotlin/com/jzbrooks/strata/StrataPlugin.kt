@@ -39,10 +39,10 @@ public class StrataPlugin : Plugin<Project> {
             DEPENDENCY_EDGES_SERVICE,
             DependencyEdgesService::class.java,
         ) {
-          it.parameters.bootstrapApplied.convention(false)
+          it.parameters.collectorApplied.convention(false)
         }
 
-    if (!dependencyEdgesService.get().parameters.bootstrapApplied.get()) {
+    if (!dependencyEdgesService.get().parameters.collectorApplied.get()) {
       throw GradleException(
           """
           Strata dependency collection is not enabled.

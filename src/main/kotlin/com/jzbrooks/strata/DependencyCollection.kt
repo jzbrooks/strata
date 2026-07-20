@@ -15,7 +15,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
 internal interface DependencyEdgesServiceParameters : BuildServiceParameters {
-  val bootstrapApplied: Property<Boolean>
+  val collectorApplied: Property<Boolean>
 }
 
 internal abstract class DependencyEdgesService : BuildService<DependencyEdgesServiceParameters> {
