@@ -34,15 +34,7 @@ public class StrataPlugin : Plugin<Project> {
       named(LifecycleBasePlugin.CHECK_TASK_NAME).configure { it.dependsOn(checkTask) }
     }
 
-    val dependencyEdgesService =
-        project.gradle.sharedServices.registerIfAbsent(
-            DEPENDENCY_EDGES_SERVICE,
-            DependencyEdgesService::class.java,
-        ) {
-          it.parameters.collectorApplied.convention(false)
-        }
-
-    if (!dependencyEdgesService.get().parameters.collectorApplied.get()) {
+    if (project.gradle.sharedServices.registrations.findByName("strataDependencyEdges") == null) {
       throw GradleException(
           """
           Strata dependency collection is not enabled.

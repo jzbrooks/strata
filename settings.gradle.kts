@@ -7,3 +7,5 @@ pluginManagement {
 }
 
 rootProject.name = "strata"
+
+include(":strata", ":strata-collector")

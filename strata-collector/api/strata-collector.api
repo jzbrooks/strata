@@ -33,12 +33,6 @@ public abstract class com/jzbrooks/strata/StrataExtension {
 	public final fun layer (Ljava/lang/String;Lorg/gradle/api/Action;)V
 }
 
-public final class com/jzbrooks/strata/StrataPlugin : org/gradle/api/Plugin {
-	public fun <init> ()V
-	public synthetic fun apply (Ljava/lang/Object;)V
-	public fun apply (Lorg/gradle/api/Project;)V
-}
-
 public final class com/jzbrooks/strata/UnclassifiedProjectPolicy : java/lang/Enum {
 	public static final field FAIL Lcom/jzbrooks/strata/UnclassifiedProjectPolicy;
 	public static final field IGNORE Lcom/jzbrooks/strata/UnclassifiedProjectPolicy;

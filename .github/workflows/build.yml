@@ -56,7 +56,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: strata
-        path: build/libs/*.jar
+        path: strata/build/libs/*.jar
 
   # Prepare a draft release for GitHub Releases page for the manual verification
   # If accepted and published, release workflow would be triggered
