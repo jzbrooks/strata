@@ -1,5 +1,8 @@
 # Strata
 
+[![Build Status](https://github.com/jzbrooks/strata/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/jzbrooks/strata/actions/workflows/build.yml)
+[![Maven Central: strata](https://img.shields.io/maven-central/v/com.jzbrooks/strata?label=strata)](https://ossindex.sonatype.org/component/pkg:maven/com.jzbrooks/strata)
+
 Strata is a Gradle plugin that enforces an explicit dependency graph between project-backed architectural layers.
 Each layer is one existing top-level Gradle project. That project and all its descendants belong to the layer automatically.
 
