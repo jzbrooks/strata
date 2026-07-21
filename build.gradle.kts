@@ -6,4 +6,4 @@ plugins {
   id("com.vanniktech.maven.publish") version "0.37.0" apply false
 }
 
-version = providers.gradleProperty("VERSION_NAME").toString()
+version = providers.gradleProperty("VERSION_NAME").get()

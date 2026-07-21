@@ -118,11 +118,10 @@ jobs:
       - name: Create Release Draft
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NOTES: ${{ needs.build.outputs.changelog }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          gh release create v${{ needs.build.outputs.version }} ${{ github.workspace }}/dist/strata*.jar \
+          gh release create "v$VERSION" ${{ github.workspace }}/dist/strata*.jar \
             --draft \
-            --title "v${{ needs.build.outputs.version }}" \
-            --notes "$(cat << 'EOM'
-          ${{ needs.build.outputs.changelog }}
-          EOM
-          )"
+            --title "v$VERSION" \
+            --notes "$RELEASE_NOTES"
