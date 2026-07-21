@@ -11,57 +11,98 @@ class ArchitectureRenderingTest {
   private val layers = listOf(app, data, infrastructure)
 
   @Test
-  fun `same layer descendants are valid in both directions`() {
-    val model = model(classification(":app", app), classification(":app:checkout", app))
-    assertEquals(
-        emptyList(),
-        ArchitectureRendering.violations(
+  fun `analysis classifies every edge disposition`() {
+    val model =
+        model(
+            classification(":app", app),
+            classification(":app:checkout", app),
+            classification(":data", data),
+            classification(":infrastructure", infrastructure),
+            allowances = setOf(AllowedEdge(":infrastructure", ":data")),
+            ignoredConfigurations = setOf("ignored"),
+        )
+    val report =
+        ArchitectureAnalysis.analyze(
             model,
-            listOf(edge(":app", ":app:checkout"), edge(":app:checkout", ":app")),
+            listOf(
+                edge(":app", ":app:checkout"),
+                edge(":app", ":data"),
+                edge(":infrastructure", ":data"),
+                edge(":data", ":app"),
+                edge(":data", ":app", "ignored"),
+            ),
+        )
+    assertEquals(
+        listOf(
+            DependencyDisposition.SAME_LAYER,
+            DependencyDisposition.ALLOWED,
+            DependencyDisposition.IGNORED,
+            DependencyDisposition.FORBIDDEN,
+            DependencyDisposition.EXPLICITLY_ALLOWED,
         ),
+        report.dependencies.map { it.disposition },
     )
   }
 
   @Test
-  fun `forbidden diagnostic identifies layer projects`() {
+  fun `render includes status violations reachable trees cycles shared nodes and classifications`() {
     val model =
         model(
-            classification(":infrastructure:http", infrastructure),
-            classification(":data:users", data),
+            classification(":app", app),
+            classification(":data", data),
+            classification(":infrastructure", infrastructure),
         )
-    val diagnostic =
-        ArchitectureRendering.violations(model, listOf(edge(":infrastructure:http", ":data:users")))
-            .single()
-    assertContains(diagnostic, "Forbidden architectural dependency: :infrastructure -> :data")
-    assertContains(diagnostic, "Source layer project:    :infrastructure")
-    assertContains(diagnostic, "Target layer project:    :data")
-    assertContains(diagnostic, "dependsOn(\":data\")")
-    assertContains(diagnostic, "implementation(project(\":data:users\"))")
+    val report =
+        ArchitectureAnalysis.analyze(
+            model,
+            listOf(
+                edge(":infrastructure", ":app"),
+                edge(":infrastructure", ":data"),
+                edge(":app", ":data"),
+                edge(":data", ":infrastructure"),
+            ),
+        )
+    val text = ArchitectureRendering.render(report)
+    assertContains(text, "Status: FAILED")
+    assertContains(text, "Violations: 2")
+    assertContains(text, ":infrastructure (:infrastructure) -> :app (:app)")
+    assertContains(text, "-> :data [allowed; implementation")
+    assertContains(text, "(cycle -> :infrastructure)")
+    assertContains(text, "(shared -> :data)")
+    assertContains(text, "1. Layer project: :app")
   }
 
   @Test
-  fun `report groups nested projects by layer project`() {
-    val report =
-        ArchitectureRendering.report(
-            model(classification(":app", app), classification(":app:checkout", app))
+  fun `clean report is deterministic across edge order and configurations`() {
+    val model = model(classification(":app", app), classification(":data", data))
+    val edges =
+        listOf(
+            edge(":app", ":data", "testImplementation"),
+            edge(":app", ":data", "implementation"),
         )
-    assertContains(report, "1. Layer project: :app")
-    assertContains(report, "     :app:checkout")
-    assertContains(report, "Direct dependencies:\n     :data")
+    val first = ArchitectureRendering.render(ArchitectureAnalysis.analyze(model, edges))
+    val second = ArchitectureRendering.render(ArchitectureAnalysis.analyze(model, edges.reversed()))
+    assertEquals(first, second)
+    assertContains(first, "Status: PASSED")
+    assertContains(first, "Violations: 0")
   }
 
-  private fun model(vararg classifications: ProjectClassification) =
+  private fun model(
+      vararg classifications: ProjectClassification,
+      allowances: Set<AllowedEdge> = emptySet(),
+      ignoredConfigurations: Set<String> = emptySet(),
+  ) =
       ArchitectureModel(
           layers,
           classifications.associateBy { it.projectPath },
           emptySet(),
-          emptySet(),
-          emptySet(),
+          ignoredConfigurations,
+          allowances,
       )
 
   private fun classification(path: String, layer: LayerDefinition) =
       ProjectClassification(path, layer)
 
-  private fun edge(from: String, to: String) =
-      DependencyEdge(from, to, "implementation", "${from.removePrefix(":")}/build.gradle.kts")
+  private fun edge(from: String, to: String, configuration: String = "implementation") =
+      DependencyEdge(from, to, configuration, "${from.removePrefix(":")}/build.gradle.kts")
 }

@@ -1,13 +1,12 @@
 public abstract class com/jzbrooks/strata/ArchitecturalLayersReportTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
-	public abstract fun getReportText ()Lorg/gradle/api/provider/Property;
+	public abstract fun getReportFile ()Lorg/gradle/api/file/RegularFileProperty;
 	public final fun report ()V
 }
 
 public abstract class com/jzbrooks/strata/CheckArchitecturalLayersTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun checkArchitecturalLayers ()V
-	public abstract fun getViolations ()Lorg/gradle/api/provider/ListProperty;
 }
 
 public abstract interface class com/jzbrooks/strata/LayerSpec {

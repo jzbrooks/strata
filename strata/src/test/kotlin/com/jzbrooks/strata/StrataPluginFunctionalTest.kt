@@ -2,6 +2,7 @@ package com.jzbrooks.strata
 
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
+import kotlin.io.path.readText
 import kotlin.io.path.writeText
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -27,15 +28,20 @@ class StrataPluginFunctionalTest {
     val result = run("check")
     assertEquals(TaskOutcome.SUCCESS, result.task(":checkArchitecturalLayers")?.outcome)
     assertContains(result.output, "No forbidden architectural dependencies found")
+    assertContains(report(), "Status: PASSED")
   }
 
   @Test
   fun `declaration order does not allow a dependency`() {
     fixture(standardProjects(), kotlinRootBuild(), mapOf(":infrastructure:http" to listOf(":app")))
     val result = runAndFail("checkArchitecturalLayers")
-    assertContains(result.output, "Forbidden architectural dependency: :infrastructure -> :app")
-    assertContains(result.output, "dependsOn(\":app\")")
-    assertContains(result.output, "infrastructure/http/build.gradle.kts")
+    assertContains(result.output, "Found 1 forbidden architectural dependency")
+    assertContains(
+        result.output,
+        testProjectDir.resolve("build/reports/strata/architectural-layers.txt").toString(),
+    )
+    assertContains(report(), ":infrastructure:http (:infrastructure) -> :app (:app)")
+    assertContains(report(), "infrastructure/http/build.gradle.kts")
   }
 
   @Test
@@ -120,10 +126,34 @@ class StrataPluginFunctionalTest {
   @Test
   fun `renders report by layer project`() {
     fixture(standardProjects(), kotlinRootBuild())
-    val output = run("architecturalLayersReport").output
+    run("architecturalLayersReport")
+    val output = report()
     assertContains(output, "1. Layer project: :app")
     assertContains(output, ":app:checkout")
-    assertContains(output, "Direct dependencies:\n     :data")
+    assertContains(output, "Direct dependencies:\n       :data")
+  }
+
+  @Test
+  fun `direct report succeeds with violations and regenerates after dependencies change`() {
+    fixture(standardProjects(), kotlinRootBuild(), mapOf(":infrastructure:http" to listOf(":app")))
+
+    assertEquals(
+        TaskOutcome.SUCCESS,
+        run("architecturalLayersReport").task(":architecturalLayersReport")?.outcome,
+    )
+    assertContains(report(), "Status: FAILED")
+    assertContains(report(), "Violations: 1")
+
+    testProjectDir
+        .resolve("infrastructure/http/build.gradle.kts")
+        .writeText("plugins { `java-library` }")
+
+    assertEquals(
+        TaskOutcome.SUCCESS,
+        run("architecturalLayersReport").task(":architecturalLayersReport")?.outcome,
+    )
+    assertContains(report(), "Status: PASSED")
+    assertContains(report(), "Violations: 0")
   }
 
   @Test
@@ -203,22 +233,20 @@ class StrataPluginFunctionalTest {
                 "-Dorg.gradle.unsafe.isolated-projects.diagnostics=true",
             )
             .output
-    assertContains(output, "Forbidden architectural dependency: :infrastructure -> :app")
-    assertContains(output, "Source project:          :infrastructure:http")
-    assertContains(output, "Configuration:           implementation")
-    assertContains(output, "infrastructure/http/build.gradle.kts")
+    assertContains(output, "Found 1 forbidden architectural dependency")
+    assertContains(report(), ":infrastructure:http (:infrastructure) -> :app (:app)")
+    assertContains(report(), "[implementation; infrastructure/http/build.gradle.kts]")
   }
 
   @Test
   fun `renders report with isolated projects`() {
     fixture(standardProjects(), kotlinRootBuild())
-    val output =
-        run(
-                "architecturalLayersReport",
-                "-Dorg.gradle.unsafe.isolated-projects=true",
-                "-Dorg.gradle.unsafe.isolated-projects.diagnostics=true",
-            )
-            .output
+    run(
+        "architecturalLayersReport",
+        "-Dorg.gradle.unsafe.isolated-projects=true",
+        "-Dorg.gradle.unsafe.isolated-projects.diagnostics=true",
+    )
+    val output = report()
     assertContains(output, "1. Layer project: :app")
     assertContains(output, ":app:checkout")
   }
@@ -294,6 +322,9 @@ class StrataPluginFunctionalTest {
   private fun run(vararg arguments: String) = runner(arguments.toList()).build()
 
   private fun runAndFail(vararg arguments: String) = runner(arguments.toList()).buildAndFail()
+
+  private fun report() =
+      testProjectDir.resolve("build/reports/strata/architectural-layers.txt").readText()
 
   // Necessary unless gradle plugin test kit is adopted
   @Suppress("WithPluginClasspathUsage")

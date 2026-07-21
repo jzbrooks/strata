@@ -26,10 +26,17 @@ public class StrataPlugin : Plugin<Project> {
               CheckArchitecturalLayersTask::class.java,
           )
 
-      register(
-          "architecturalLayersReport",
-          ArchitecturalLayersReportTask::class.java,
-      )
+      val reportTask =
+          register(
+              "architecturalLayersReport",
+              ArchitecturalLayersReportTask::class.java,
+          ) {
+            it.reportFile.convention(
+                project.layout.buildDirectory.file("reports/strata/architectural-layers.txt")
+            )
+          }
+
+      checkTask.configure { it.dependsOn(reportTask) }
 
       named(LifecycleBasePlugin.CHECK_TASK_NAME).configure { it.dependsOn(checkTask) }
     }

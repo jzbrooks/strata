@@ -82,31 +82,37 @@ internal class CollectProjectDependenciesAction : IsolatedAction<Project> {
         "checkArchitecturalLayers",
         CheckArchitecturalLayersTask::class.java,
     ) {
-      it.dependsOn(
-          includedProjects.map { identity -> "${identity.path}:$COLLECT_DEPENDENCIES_TASK" }
-      )
       it.dependencyEdgesService.set(service)
       it.usesService(service)
-      it.layerDefinitions.set(model.layers.map(::encodeLayer))
-      it.projectClassifications.set(
-          model.classificationsByPath.values.map { classification ->
-            listOf(classification.projectPath, classification.layer.projectPath)
-                .joinToString(FIELD_SEPARATOR.toString())
-          }
+      it.reportFile.set(
+          project.layout.buildDirectory.file("reports/strata/architectural-layers.txt")
       )
-      it.ignoredProjectPaths.set(model.ignoredProjectPaths.toList())
-      it.ignoredConfigurationNames.set(model.ignoredConfigurationNames.toList())
-      it.allowances.set(
-          model.allowances.map { allowance ->
-            listOf(allowance.from, allowance.to).joinToString(FIELD_SEPARATOR.toString())
-          }
+      configureModel(
+          it.layerDefinitions,
+          it.projectClassifications,
+          it.ignoredProjectPaths,
+          it.ignoredConfigurationNames,
+          it.allowances,
+          model,
       )
     }
     project.tasks.named(
         "architecturalLayersReport",
         ArchitecturalLayersReportTask::class.java,
     ) {
-      it.reportText.set(ArchitectureRendering.report(model))
+      it.dependsOn(
+          includedProjects.map { identity -> "${identity.path}:$COLLECT_DEPENDENCIES_TASK" }
+      )
+      it.dependencyEdgesService.set(service)
+      it.usesService(service)
+      configureModel(
+          it.layerDefinitions,
+          it.projectClassifications,
+          it.ignoredProjectPaths,
+          it.ignoredConfigurationNames,
+          it.allowances,
+          model,
+      )
     }
   }
 
@@ -131,6 +137,30 @@ internal class CollectProjectDependenciesAction : IsolatedAction<Project> {
                 .replace('\\', '/')
           }
           .getOrDefault(project.buildFile.path)
+}
+
+private fun configureModel(
+    layerDefinitions: ListProperty<String>,
+    projectClassifications: ListProperty<String>,
+    ignoredProjectPaths: ListProperty<String>,
+    ignoredConfigurationNames: ListProperty<String>,
+    allowances: ListProperty<String>,
+    model: ArchitectureModel,
+) {
+  layerDefinitions.set(model.layers.map(::encodeLayer))
+  projectClassifications.set(
+      model.classificationsByPath.values.map { classification ->
+        listOf(classification.projectPath, classification.layer.projectPath)
+            .joinToString(FIELD_SEPARATOR.toString())
+      }
+  )
+  ignoredProjectPaths.set(model.ignoredProjectPaths.toList())
+  ignoredConfigurationNames.set(model.ignoredConfigurationNames.toList())
+  allowances.set(
+      model.allowances.map { allowance ->
+        listOf(allowance.from, allowance.to).joinToString(FIELD_SEPARATOR.toString())
+      }
+  )
 }
 
 private fun encodeLayer(layer: LayerDefinition): String =

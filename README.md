@@ -92,7 +92,7 @@ top-level projects, including the leading colon.
 * Cycles and unknown layer paths are configuration errors.
 * Direct project dependencies declared in all declarable configurations are checked without resolving configurations.
 
-Run `./gradlew checkArchitecturalLayers` to validate the build or `./gradlew architecturalLayersReport` to inspect the classification. `checkArchitecturalLayers` is also attached to the root `check` lifecycle task.
+Run `./gradlew checkArchitecturalLayers` to validate the build or `./gradlew architecturalLayersReport` to generate the report without failing on violations. `checkArchitecturalLayers` is also attached to the root `check` lifecycle task. All three entry points write `build/reports/strata/architectural-layers.txt`, including when the architecture is clean. The report task always regenerates the file so changes to project dependencies cannot leave a stale result.
 
 Ignored project paths cover the named project and its descendants.
 Allowances match only the exact directed source and target paths and require a non-blank justification.
@@ -107,29 +107,13 @@ dependencies {
 }
 ```
 
-Running `./gradlew checkArchitecturalLayers` fails with an actionable error:
+Running `./gradlew checkArchitecturalLayers` fails with a concise error pointing to the complete report:
 
 ```text
-Forbidden architectural dependency: :infrastructure -> :app
-
-Source project:          :infrastructure:telemetry
-Source layer project:    :infrastructure
-Configuration:           implementation
-
-Target project:          :app:profile
-Target layer project:    :app
-
-Declared from:
-  infrastructure/telemetry/build.gradle.kts
-
-Likely declaration:
-  implementation(project(":app:profile"))
-
-Suggested fixes:
-- If architecturally sound, add dependsOn(":app") to layer(":infrastructure").
-- Reverse or invert the dependency so ':app' does not own a dependency required by ':infrastructure'.
-- Add a narrow, documented exception only when the violation is intentional and temporary.
+Found 1 forbidden architectural dependency. See report: /path/to/project/build/reports/strata/architectural-layers.txt
 ```
+
+The text report records the overall status, every forbidden edge and its declaring build file, and a complete reachable project-dependency tree for each offending source. Tree edges are annotated as `forbidden`, `allowed`, `same-layer`, `explicitly-allowed`, or `ignored`; cycles and shared subgraphs use reference markers. The layer classification and permitted-layer overview follows the dependency findings.
 
 ## Build
 
