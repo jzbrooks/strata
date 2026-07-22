@@ -110,8 +110,14 @@ dependencies {
 Running `./gradlew checkArchitecturalLayers` fails with a concise error pointing to the complete report:
 
 ```text
+1. infrastructure/telemetry/build.gradle.kts:3
+   ─────────────────────────────────────────────
+   implementation(project(":app:profile"))
+
 Found 1 forbidden architectural dependency. See report: /path/to/project/build/reports/strata/architectural-layers.txt
 ```
+
+The check prints the first five forbidden declarations at the normal Gradle lifecycle log level, then directs you to the report for the complete result.
 
 The text report records the overall status, every forbidden edge and its declaring build file, and a tree of forbidden dependencies for each offending source. Allowed, same-layer, explicitly allowed, and ignored project dependencies are omitted to keep the findings focused. The layer classification and permitted-layer overview follows the dependency findings.
 

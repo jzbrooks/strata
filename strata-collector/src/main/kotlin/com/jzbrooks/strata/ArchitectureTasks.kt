@@ -29,7 +29,7 @@ public abstract class CheckArchitecturalLayersTask : DefaultTask() {
 
   @TaskAction
   public fun checkArchitecturalLayers() {
-    val count =
+    val violations =
         ArchitectureAnalysis.analyze(
                 decodeArchitectureModel(
                     layerDefinitions.get(),
@@ -41,15 +41,28 @@ public abstract class CheckArchitecturalLayersTask : DefaultTask() {
                 dependencyEdgesService.get().snapshot(),
             )
             .violations
-            .size
+    val count = violations.size
     val path = reportFile.get().asFile.absolutePath
     if (count > 0) {
+      logger.lifecycle(renderFailureList(violations.take(5)))
       throw GradleException(
           "Found $count forbidden architectural ${if (count == 1) "dependency" else "dependencies"}. See report: $path"
       )
     }
-    logger.lifecycle("No forbidden architectural dependencies found. Report: $path")
   }
+
+  private fun renderFailureList(violations: List<AnalyzedDependency>): String =
+      buildString {
+            violations.forEachIndexed { index, violation ->
+              if (index > 0) appendLine()
+              val edge = violation.edge
+              val location = "${edge.buildFile}:${edge.lineNumber}"
+              appendLine("${index + 1}. $location")
+              appendLine("   ${"─".repeat(location.length)}")
+              append("   ${edge.declaration}")
+            }
+          }
+          .trimEnd()
 
   private fun initializeModelProperties() {
     layerDefinitions.convention(emptyList())

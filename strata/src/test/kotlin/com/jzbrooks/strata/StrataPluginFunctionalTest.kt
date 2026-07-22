@@ -6,6 +6,7 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
@@ -36,12 +37,35 @@ class StrataPluginFunctionalTest {
     fixture(standardProjects(), kotlinRootBuild(), mapOf(":infrastructure:http" to listOf(":app")))
     val result = runAndFail("checkArchitecturalLayers")
     assertContains(result.output, "Found 1 forbidden architectural dependency")
+    assertContains(result.output, "1. infrastructure/http/build.gradle.kts:3")
+    assertContains(result.output, "   ─────")
+    assertContains(result.output, "   implementation(project(\":app\"))")
     assertContains(
         result.output,
         testProjectDir.resolve("build/reports/strata/architectural-layers.txt").toString(),
     )
     assertContains(report(), ":infrastructure:http (:infrastructure) -> :app (:app)")
     assertContains(report(), "infrastructure/http/build.gradle.kts")
+  }
+
+  @Test
+  fun `check output lists only the first five offending declarations`() {
+    val projects =
+        listOf(":app", ":data", ":infrastructure") + (1..6).map { ":infrastructure:source$it" }
+    fixture(
+        projects,
+        kotlinRootBuild(),
+        (1..6).associate { ":infrastructure:source$it" to listOf(":app") },
+    )
+
+    val output = runAndFail("checkArchitecturalLayers").output
+    (1..5).forEach { index ->
+      assertContains(output, "$index. infrastructure/source$index/build.gradle.kts:3")
+      assertContains(output, "implementation(project(\":app\"))")
+    }
+    assertFalse(output.contains("6. infrastructure/source6/build.gradle.kts:3"))
+    assertContains(output, "Found 6 forbidden architectural dependencies")
+    assertContains(output, "build/reports/strata/architectural-layers.txt")
   }
 
   @Test

@@ -38,7 +38,7 @@ internal abstract class CollectProjectDependenciesTask : DefaultTask() {
 
   private fun decodeDependencyEdge(value: String): DependencyEdge {
     val fields = value.split(FIELD_SEPARATOR)
-    return DependencyEdge(fields[0], fields[1], fields[2], fields[3])
+    return DependencyEdge(fields[0], fields[1], fields[2], fields[3], fields[4].toInt(), fields[5])
   }
 }
 
@@ -118,14 +118,43 @@ internal class CollectProjectDependenciesAction : IsolatedAction<Project> {
 
   private fun collectProjectDependencyEdges(project: Project): List<String> {
     val buildFile = relativeBuildFile(project)
+    val buildFileLines = project.buildFile.readLines()
     return project.configurations
         .filter { it.isCanBeDeclared }
         .flatMap { configuration ->
           configuration.dependencies.withType(ProjectDependency::class.java).map { dependency ->
-            listOf(project.path, dependency.path, configuration.name, buildFile)
+            val source = findDeclaration(buildFileLines, configuration.name, dependency.path)
+            listOf(
+                    project.path,
+                    dependency.path,
+                    configuration.name,
+                    buildFile,
+                    source.first.toString(),
+                    source.second,
+                )
                 .joinToString(FIELD_SEPARATOR.toString())
           }
         }
+  }
+
+  private fun findDeclaration(
+      lines: List<String>,
+      configuration: String,
+      targetPath: String,
+  ): Pair<Int, String> {
+    val exact = lines.indexOfFirst { line -> configuration in line && targetPath in line }
+    val matchingTarget = lines.indexOfFirst { line -> targetPath in line }
+    val index =
+        when {
+          exact >= 0 -> exact
+          matchingTarget >= 0 -> matchingTarget
+          else -> -1
+        }
+    return if (index >= 0) {
+      index + 1 to lines[index].trim()
+    } else {
+      1 to "$configuration(project(\"$targetPath\"))"
+    }
   }
 
   private fun relativeBuildFile(project: Project): String =

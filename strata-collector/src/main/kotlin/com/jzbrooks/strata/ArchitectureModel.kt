@@ -32,4 +32,6 @@ internal data class DependencyEdge(
     val targetPath: String,
     val configuration: String,
     val buildFile: String,
+    val lineNumber: Int = 1,
+    val declaration: String = "$configuration(project(\"$targetPath\"))",
 )
