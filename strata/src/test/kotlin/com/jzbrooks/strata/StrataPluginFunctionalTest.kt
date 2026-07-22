@@ -2,6 +2,7 @@ package com.jzbrooks.strata
 
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
+import kotlin.io.path.deleteIfExists
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 import kotlin.test.assertContains
@@ -155,6 +156,19 @@ class StrataPluginFunctionalTest {
     assertContains(output, "1. Layer project: :app")
     assertContains(output, ":app:checkout")
     assertContains(output, "Direct dependencies:\n       :data")
+  }
+
+  @Test
+  fun `collects projects without build scripts`() {
+    val projects = standardProjects() + ":app:folder"
+    fixture(projects, kotlinRootBuild())
+    testProjectDir.resolve("app/folder/build.gradle.kts").deleteIfExists()
+
+    val result = run("checkArchitecturalLayers")
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":checkArchitecturalLayers")?.outcome)
+    assertContains(report(), "Status: PASSED")
+    assertContains(report(), ":app:folder")
   }
 
   @Test

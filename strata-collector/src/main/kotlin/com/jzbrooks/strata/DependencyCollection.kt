@@ -118,7 +118,7 @@ internal class CollectProjectDependenciesAction : IsolatedAction<Project> {
 
   private fun collectProjectDependencyEdges(project: Project): List<String> {
     val buildFile = relativeBuildFile(project)
-    val buildFileLines = project.buildFile.readLines()
+    val buildFileLines = project.buildFile.takeIf { it.isFile }?.readLines().orEmpty()
     return project.configurations
         .filter { it.isCanBeDeclared }
         .flatMap { configuration ->
