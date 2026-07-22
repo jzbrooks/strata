@@ -49,6 +49,7 @@ public abstract class CheckArchitecturalLayersTask : DefaultTask() {
           "Found $count forbidden architectural ${if (count == 1) "dependency" else "dependencies"}. See report: $path"
       )
     }
+    logger.info("No forbidden architectural dependencies found. Report: $path")
   }
 
   private fun renderFailureList(violations: List<AnalyzedDependency>): String =

@@ -26,7 +26,7 @@ class StrataPluginFunctionalTest {
             ":data:users" to listOf(":infrastructure:http"),
         ),
     )
-    val result = run("check")
+    val result = run("check", "--info")
     assertEquals(TaskOutcome.SUCCESS, result.task(":checkArchitecturalLayers")?.outcome)
     assertContains(result.output, "No forbidden architectural dependencies found")
     assertContains(report(), "Status: PASSED")
@@ -235,6 +235,7 @@ class StrataPluginFunctionalTest {
         arrayOf(
             "-Dorg.gradle.unsafe.isolated-projects=true",
             "-Dorg.gradle.unsafe.isolated-projects.diagnostics=true",
+            "--info",
         )
 
     val first = run("checkArchitecturalLayers", *arguments)
