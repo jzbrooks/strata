@@ -38,7 +38,7 @@ internal abstract class CollectProjectDependenciesTask : DefaultTask() {
 
   private fun decodeDependencyEdge(value: String): DependencyEdge {
     val fields = value.split(FIELD_SEPARATOR)
-    return DependencyEdge(fields[0], fields[1], fields[2], fields[3], fields[4].toInt(), fields[5])
+    return DependencyEdge(fields[0], fields[1], fields[2], fields[3], fields[4])
   }
 }
 
@@ -129,8 +129,7 @@ internal class CollectProjectDependenciesAction : IsolatedAction<Project> {
                     dependency.path,
                     configuration.name,
                     buildFile,
-                    source.first.toString(),
-                    source.second,
+                    source,
                 )
                 .joinToString(FIELD_SEPARATOR.toString())
           }
@@ -141,7 +140,7 @@ internal class CollectProjectDependenciesAction : IsolatedAction<Project> {
       lines: List<String>,
       configuration: String,
       targetPath: String,
-  ): Pair<Int, String> {
+  ): String {
     val exact = lines.indexOfFirst { line -> configuration in line && targetPath in line }
     val matchingTarget = lines.indexOfFirst { line -> targetPath in line }
     val index =
@@ -150,11 +149,7 @@ internal class CollectProjectDependenciesAction : IsolatedAction<Project> {
           matchingTarget >= 0 -> matchingTarget
           else -> -1
         }
-    return if (index >= 0) {
-      index + 1 to lines[index].trim()
-    } else {
-      1 to "$configuration(project(\"$targetPath\"))"
-    }
+    return if (index >= 0) lines[index].trim() else "$configuration(project(\"$targetPath\"))"
   }
 
   private fun relativeBuildFile(project: Project): String =

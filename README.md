@@ -110,8 +110,8 @@ dependencies {
 Running `./gradlew checkArchitecturalLayers` fails with a concise error pointing to the complete report:
 
 ```text
-1. infrastructure/telemetry/build.gradle.kts:3
-   ─────────────────────────────────────────────
+1. infrastructure/telemetry/build.gradle.kts
+   ───────────────────────────────────────────
    implementation(project(":app:profile"))
 
 Found 1 forbidden architectural dependency. See report: /path/to/project/build/reports/strata/architectural-layers.txt

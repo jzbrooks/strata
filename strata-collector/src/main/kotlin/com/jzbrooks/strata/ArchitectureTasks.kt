@@ -57,9 +57,8 @@ public abstract class CheckArchitecturalLayersTask : DefaultTask() {
             violations.forEachIndexed { index, violation ->
               if (index > 0) appendLine()
               val edge = violation.edge
-              val location = "${edge.buildFile}:${edge.lineNumber}"
-              appendLine("${index + 1}. $location")
-              appendLine("   ${"─".repeat(location.length)}")
+              appendLine("${index + 1}. ${edge.buildFile}")
+              appendLine("   ${"─".repeat(edge.buildFile.length)}")
               append("   ${edge.declaration}")
             }
           }
