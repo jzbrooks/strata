@@ -113,7 +113,7 @@ public abstract class ArchitecturalLayersReportTask : DefaultTask() {
     val output = reportFile.get().asFile
     output.parentFile.mkdirs()
     output.writeText(ArchitectureRendering.render(report))
-    logger.lifecycle("Architectural layers report: ${output.absolutePath}")
+    logger.info("Architectural layers report: ${output.absolutePath}")
   }
 }
 
