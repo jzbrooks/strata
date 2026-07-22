@@ -113,7 +113,7 @@ Running `./gradlew checkArchitecturalLayers` fails with a concise error pointing
 Found 1 forbidden architectural dependency. See report: /path/to/project/build/reports/strata/architectural-layers.txt
 ```
 
-The text report records the overall status, every forbidden edge and its declaring build file, and a complete reachable project-dependency tree for each offending source. Tree edges are annotated as `forbidden`, `allowed`, `same-layer`, `explicitly-allowed`, or `ignored`; cycles and shared subgraphs use reference markers. The layer classification and permitted-layer overview follows the dependency findings.
+The text report records the overall status, every forbidden edge and its declaring build file, and a tree of forbidden dependencies for each offending source. Allowed, same-layer, explicitly allowed, and ignored project dependencies are omitted to keep the findings focused. The layer classification and permitted-layer overview follows the dependency findings.
 
 ## Build
 

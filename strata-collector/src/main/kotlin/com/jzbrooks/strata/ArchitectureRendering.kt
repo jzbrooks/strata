@@ -84,7 +84,7 @@ internal object ArchitectureRendering {
             appendLine("Offending dependency trees")
             val roots = violations.map { it.edge.sourcePath }.distinct().sorted()
             if (roots.isEmpty()) appendLine("  (none)")
-            val outgoing = report.dependencies.groupBy { it.edge.sourcePath }
+            val outgoing = violations.groupBy { it.edge.sourcePath }
             roots.forEachIndexed { index, root ->
               if (index > 0) appendLine()
               appendLine("  $root")

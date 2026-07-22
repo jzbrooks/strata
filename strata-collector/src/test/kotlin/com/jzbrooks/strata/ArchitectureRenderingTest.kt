@@ -2,6 +2,7 @@ package com.jzbrooks.strata
 
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import org.junit.jupiter.api.Test
 
 class ArchitectureRenderingTest {
@@ -45,7 +46,7 @@ class ArchitectureRenderingTest {
   }
 
   @Test
-  fun `render includes status violations reachable trees cycles shared nodes and classifications`() {
+  fun `render includes only forbidden dependencies in offending trees`() {
     val model =
         model(
             classification(":app", app),
@@ -66,9 +67,9 @@ class ArchitectureRenderingTest {
     assertContains(text, "Status: FAILED")
     assertContains(text, "Violations: 2")
     assertContains(text, ":infrastructure (:infrastructure) -> :app (:app)")
-    assertContains(text, "-> :data [allowed; implementation")
-    assertContains(text, "(cycle -> :infrastructure)")
-    assertContains(text, "(shared -> :data)")
+    assertContains(text, "-> :app [forbidden; implementation")
+    assertContains(text, "-> :data [forbidden; implementation")
+    assertFalse(text.contains("[allowed;"))
     assertContains(text, "1. Layer project: :app")
   }
 
