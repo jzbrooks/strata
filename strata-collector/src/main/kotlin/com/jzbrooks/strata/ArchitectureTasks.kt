@@ -55,10 +55,9 @@ public abstract class CheckArchitecturalLayersTask : DefaultTask() {
   private fun renderFailureList(violations: List<AnalyzedDependency>): String =
       buildString {
             violations.forEachIndexed { index, violation ->
-              if (index > 0) appendLine()
+              if (index > 0) repeat(2) { appendLine() }
               val edge = violation.edge
-              appendLine("${index + 1}. ${edge.buildFile}")
-              appendLine("   ${"─".repeat(edge.buildFile.length)}")
+              appendLine("${index + 1}. ${edge.buildFile}:")
               append("   ${edge.declaration}")
             }
           }

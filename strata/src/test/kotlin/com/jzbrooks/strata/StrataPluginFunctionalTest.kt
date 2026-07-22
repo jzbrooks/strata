@@ -39,7 +39,6 @@ class StrataPluginFunctionalTest {
     val result = runAndFail("checkArchitecturalLayers")
     assertContains(result.output, "Found 1 forbidden architectural dependency")
     assertContains(result.output, "1. infrastructure/http/build.gradle.kts")
-    assertContains(result.output, "   ─────")
     assertContains(result.output, "   implementation(project(\":app\"))")
     assertContains(
         result.output,
