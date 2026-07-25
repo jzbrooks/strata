@@ -30,6 +30,7 @@ public abstract class com/jzbrooks/strata/StrataExtension {
 	public final fun ignoreConfiguration (Ljava/lang/String;)V
 	public final fun ignoreProject (Ljava/lang/String;)V
 	public final fun layer (Ljava/lang/String;Lorg/gradle/api/Action;)V
+	public final fun layers ([Ljava/lang/String;Lorg/gradle/api/Action;)V
 }
 
 public final class com/jzbrooks/strata/UnclassifiedProjectPolicy : java/lang/Enum {

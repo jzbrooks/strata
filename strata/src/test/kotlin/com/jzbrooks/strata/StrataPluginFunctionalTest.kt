@@ -217,7 +217,17 @@ class StrataPluginFunctionalTest {
 
   @Test
   fun `reuses configuration cache`() {
-    fixture(standardProjects(), kotlinRootBuild())
+    fixture(
+        standardProjects(),
+        """
+        plugins { id("com.jzbrooks.strata") }
+                   strata {
+                     layer(":app") { dependsOn(":data") }
+                     layers(":data", ":infrastructure") {}
+                   }
+        """
+            .trimIndent(),
+    )
     run("checkArchitecturalLayers", "--configuration-cache")
     assertContains(
         run("checkArchitecturalLayers", "--configuration-cache").output,

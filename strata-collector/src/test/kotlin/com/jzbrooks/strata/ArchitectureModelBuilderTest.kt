@@ -38,6 +38,31 @@ class ArchitectureModelBuilderTest {
   }
 
   @Test
+  fun `declares multiple independently configured layers`() {
+    val extension = extension()
+    extension.layer(":app", Action { it.dependsOn(":data", ":design") })
+    extension.layers(
+        ":data",
+        ":design",
+        configure = Action { it.dependsOn(":infrastructure") },
+    )
+    extension.layer(":infrastructure", Action {})
+
+    val model =
+        ArchitectureModelBuilder.build(
+            extension,
+            identities(":app", ":data", ":design", ":infrastructure"),
+        )
+
+    assertEquals(
+        listOf(":app", ":data", ":design", ":infrastructure"),
+        model.layers.map { it.projectPath },
+    )
+    assertEquals(setOf(":infrastructure"), model.layers[1].directDependencies)
+    assertEquals(setOf(":infrastructure"), model.layers[2].directDependencies)
+  }
+
+  @Test
   fun `declaration order alone grants no access`() {
     val extension = extension()
     extension.layer(":app", Action {})

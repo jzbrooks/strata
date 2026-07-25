@@ -31,6 +31,11 @@ constructor(
     declaredLayers += layer
   }
 
+  /** Declares independent layers that share the same configuration. */
+  public fun layers(vararg projectPaths: String, configure: Action<LayerSpec>) {
+    projectPaths.forEach { layer(it, configure) }
+  }
+
   public fun ignoreProject(path: String) {
     ignoredProjectPaths.add(path)
   }

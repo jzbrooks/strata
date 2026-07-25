@@ -24,10 +24,7 @@ strata {
     layer(":app") {
         dependsOn(":data", ":design")
     }
-    layer(":data") {
-        dependsOn(":infrastructure")
-    }
-    layer(":design") {
+    layers(":data", ":design") {
         dependsOn(":infrastructure")
     }
     layer(":infrastructure") {}
@@ -148,6 +145,7 @@ strata {
 Configure Strata once on the root project. The paths passed to `layer` and `dependsOn` must be absolute paths of top-level projects, including the leading colon.
 
 * A project may depend on projects in its own layer and in every layer reachable through the configured `dependsOn` graph.
+* `layers(...)` declares independent layers with identical configuration and is a convenience for repeated `layer(...)` declarations.
 * Forward references are supported. Declaration order does not affect validation; the report lists layers in declaration order.
 * Cycles, duplicate layers, unknown layers, and malformed or nonexistent project paths are configuration errors.
 * Strata checks direct `ProjectDependency` declarations in every declarable configuration without resolving the configurations or inspecting external module dependencies.
