@@ -108,7 +108,7 @@ Apply the collector settings plugin in `settings.gradle.kts`. It registers depen
 
 ```kotlin
 plugins {
-    id("com.jzbrooks.strata.collector") version "0.0.1"
+    id("com.jzbrooks.strata.collector") version "1.0.0"
 }
 ```
 
@@ -116,7 +116,7 @@ Then apply and configure Strata in the root project's `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("com.jzbrooks.strata") version "0.0.1"
+    id("com.jzbrooks.strata") version "1.0.0"
 }
 
 strata {
