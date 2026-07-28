@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
 
     steps:
       - name: Fetch Sources
@@ -72,9 +71,7 @@ jobs:
           VERSION="${VERSION#v}"
           VERSION="$VERSION" perl -pi -e 's/(id\("com\.jzbrooks\.strata(?:\.collector)?"\) version ")[^"]+"/$1$ENV{VERSION}"/g' README.md
 
-      - name: Open PR for Changelog Update
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Push Changelog Update
         run: |
           VERSION="${{ github.event.release.tag_name }}"
           BRANCH="changelog-update-$VERSION"
@@ -83,8 +80,4 @@ jobs:
           git checkout -b $BRANCH
           git commit -am "Changelog update - $VERSION"
           git push --set-upstream origin $BRANCH
-          gh pr create \
-            --title "Changelog update - \`$VERSION\`" \
-            --body "Current pull request contains the patched \`CHANGELOG.md\` and updates the README examples to the \`$VERSION\` version." \
-            --base main \
-            --head $BRANCH
+          echo "Open the changelog pull request: ${{ github.server_url }}/${{ github.repository }}/compare/main...$BRANCH?expand=1" >> "$GITHUB_STEP_SUMMARY"
